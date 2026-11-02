@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.env*
+!.env.example
+play-logs/
+test-results/
+playwright-report/
+*.tsbuildinfo
+*.log
+.superpowers/
+# Separate checkout created alongside this workspace; do not vendor its history.
+/dialogue-quests/
