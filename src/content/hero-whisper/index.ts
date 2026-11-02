@@ -97,6 +97,12 @@ export const heroWhisper: ContentDefinition<HeroState> = {
     objective: '月白草を手に入れ、日没までにリオを村へ帰還させる。',
     playerName: 'あなた（ナビ妖精）', characterName: 'リオ', playerRole: '物には触れられないナビ妖精。質問と助言で、リオの判断に働きかけます。近くの魔力を感じ取れます。',
     delegateLabel: 'リオに任せる', duration: '5〜10分',
+    visuals: {
+      thumbnail: { src: '/placeholders/hero-mission.svg', alt: 'リオと小さな妖精が夕方の帰り道を進む仮イラスト' },
+      background: { src: '/placeholders/forest.svg', alt: '' },
+      character: { src: '/placeholders/rio.svg', alt: '大きなマフラーを巻いたリオの仮キャラクター', position: '50% 100%' },
+      player: { src: '/placeholders/fairy.svg', alt: 'ナビ妖精の仮アイコン' },
+    },
     playNotes: ['最初の持ち物：剣・包帯・干し肉1個・上着。走ることはできません。', '短い会話は0分。観察・移動・作業で時間が進みます。', '行動は観察・移動・手当て・獣への対処・灯具の遮光・採取・帰還などに対応。未知の能力や物品の生成はできません。'],
     opening: [
       { role: 'narrator', text: '日没まで、あと45分。村に必要な月白草は川向こうの祠にある。森の分かれ道で、若い勇者が足をかばって立ち止まった。' },

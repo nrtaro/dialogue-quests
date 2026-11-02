@@ -1,6 +1,6 @@
 {
   "name": "dialogue-quests",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,9 @@
     "test:playthrough": "node scripts/playthrough.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run build"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "next": "16.4.4",
     "react": "^19.2.0",

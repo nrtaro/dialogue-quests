@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 500">
+ <g stroke="#29283e" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+ <path d="m115 380-10 85h58l15-80m35-5 18 85h55l-19-85" fill="#6660a6"/><path d="M91 227Q47 244 36 305l35 12 49-56m144-37q63 4 69 73l-34 10-46-52" fill="#a8ead8"/>
+ <path d="M110 230h140l36 166H76z" fill="#a8ead8"/><path d="M131 239q49 50 97 0" fill="#fff7d3"/><path d="M180 80V43m-14 0h28" fill="none"/><circle cx="180" cy="33" r="16" fill="#ff997f"/>
+ <rect x="79" y="78" width="202" height="163" rx="58" fill="#c6bafb"/><path d="M98 133q82-40 164 0v50q-82 37-164 0z" fill="#fffaf0"/>
+ <ellipse cx="139" cy="156" rx="8" ry="13" fill="#29283e"/><ellipse cx="221" cy="156" rx="8" ry="13" fill="#29283e"/><path d="M154 198q26 25 52 0" fill="none"/>
+ <circle cx="113" cy="190" r="13" fill="#ff997f" stroke="none"/><circle cx="246" cy="190" r="13" fill="#ff997f" stroke="none"/>
+ <path d="M109 465H85v20h81v-20m69 0h57v20h-64v-20" fill="#fff7d3"/><path d="m167 296 15-23 15 23 27 4-20 18 4 27-26-13-24 13 4-27-20-18z" fill="#ffcf70"/>
+ </g>
+</svg>

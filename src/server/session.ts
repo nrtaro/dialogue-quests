@@ -85,7 +85,7 @@ export class SessionStore {
   }
   export(id: string, owner: string) {
     const s = this.get(id, owner);
-    return structuredClone({ systemVersion: '0.1.0', contentId: s.content.info.id, contentVersion: s.content.info.version, scenarioVersion: s.content.info.scenarioVersion, rulesVersion: s.content.info.rulesVersion, sessionId: s.id, mode: this.provider.mode, model: s.model, startedAt: new Date(s.created).toISOString(), initialMessages: s.content.info.opening, initialState: s.content.view(s.content.create()), turns: s.turns, endingReason: s.content.view(s.state).ending?.reason ?? null });
+    return structuredClone({ systemVersion: '0.2.0', contentId: s.content.info.id, contentVersion: s.content.info.version, scenarioVersion: s.content.info.scenarioVersion, rulesVersion: s.content.info.rulesVersion, sessionId: s.id, mode: this.provider.mode, model: s.model, startedAt: new Date(s.created).toISOString(), initialMessages: s.content.info.opening, initialState: s.content.view(s.content.create()), turns: s.turns, endingReason: s.content.view(s.state).ending?.reason ?? null });
   }
 }
 

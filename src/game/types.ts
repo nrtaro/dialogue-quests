@@ -1,10 +1,13 @@
 export type Ending = { success: boolean; title: string; reason: string };
 export type Message = { role: 'narrator' | 'character' | 'player' | 'result'; text: string };
+export type VisualAsset = { src: string; alt: string; position?: string };
+export type ContentVisuals = Partial<Record<'thumbnail' | 'background' | 'character' | 'player', VisualAsset>>;
 export type ContentInfo = {
   id: string; version: string; scenarioVersion: string; rulesVersion: string;
   title: string; scenario: string; summary: string; objective: string;
   playerName: string; characterName: string; playerRole: string; delegateLabel: string;
   duration: string; opening: Message[]; playNotes?: string[];
+  visuals?: ContentVisuals;
 };
 export type PublicState = {
   location: string; stats: { label: string; value: string; tone?: 'warning' }[];
