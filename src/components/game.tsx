@@ -4,13 +4,14 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type { ContentInfo, SessionView } from '../game/types';
 import { MissionLibrary, MissionBriefing } from './mission-menu';
 import { MissionStage } from './mission-stage';
+import { QuotaScreen } from './quota-screen';
 
 type Attempt = { requestId: string; revision: number; message: string };
-class RequestError extends Error { constructor(message: string, public status: number) { super(message); } }
+class RequestError extends Error { constructor(message: string, public status: number, public code?: string, public resetAt?: string) { super(message); } }
 async function request<T>(url: string, method: string, data?: unknown): Promise<T> {
-  const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, ...(data === undefined ? {} : { body: JSON.stringify(data) }), signal: AbortSignal.timeout(35000) });
+  const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, ...(data === undefined ? {} : { body: JSON.stringify(data) }), signal: AbortSignal.timeout(50000) });
   const result = await response.json();
-  if (!response.ok) throw new RequestError(result.error || '通信できませんでした。再試行できます。', response.status);
+  if (!response.ok) throw new RequestError(result.error || '通信できませんでした。再試行できます。', response.status, result.code, result.resetAt);
   return result as T;
 }
 async function removeSession(id: string) {
@@ -18,13 +19,18 @@ async function removeSession(id: string) {
   catch (e) { if (!(e instanceof RequestError) || ![404, 410].includes(e.status)) throw e; }
 }
 
-export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock' | 'openai' }) {
+export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock' | 'openai' | 'workers-ai' }) {
   const [selected, setSelected] = useState<ContentInfo | null>(null);
   const [session, setSession] = useState<SessionView | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const [quota, setQuota] = useState<string | null>(null);
+  const fail = (e: unknown, fallback: string) => {
+    if (e instanceof RequestError && e.code === 'ai-quota') { setQuota(e.resetAt ?? ''); setError(''); return; }
+    setError(e instanceof Error ? e.message : fallback);
+  };
   const lock = useRef(false);
   const shell = useRef<HTMLDivElement>(null);
   const playing = !!session;
@@ -60,8 +66,8 @@ export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock'
       if (session) { await removeSession(session.id); setSession(null); }
       setSelected(info);
       const next = await request<SessionView>('/api/sessions', 'POST', { contentId: info.id });
-      setSession(next); setSelected(info); setDraft(''); setAttempt(null);
-    } catch (e) { setError(e instanceof Error ? e.message : '開始できませんでした。'); }
+      setSession(next); setSelected(info); setDraft(''); setAttempt(null); setQuota(null);
+    } catch (e) { fail(e, '開始できませんでした。'); }
     finally { lock.current = false; setBusy(false); }
   }
   async function send(message: string, retry = false) {
@@ -70,8 +76,8 @@ export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock'
     lock.current = true; setBusy(true); setError(''); setAttempt(next);
     try {
       const result = await request<SessionView>(`/api/sessions/${session.id}/turn`, 'POST', next);
-      setSession(result); setDraft(''); setAttempt(null);
-    } catch (e) { setError(e instanceof Error ? e.message : '通信できませんでした。本文を残しています。'); }
+      setSession(result); setDraft(''); setAttempt(null); setQuota(null);
+    } catch (e) { fail(e, '通信できませんでした。本文を残しています。'); }
     finally { lock.current = false; setBusy(false); }
   }
   async function refresh() {
@@ -96,7 +102,7 @@ export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock'
     lock.current = true; setBusy(true);
     try {
       if (session) await removeSession(session.id);
-      setSession(null); setSelected(null); setDraft(''); setAttempt(null); setError('');
+      setSession(null); setSelected(null); setDraft(''); setAttempt(null); setError(''); setQuota(null);
     } catch (e) { setError(e instanceof Error ? e.message : '一覧に戻れませんでした。'); }
     finally { lock.current = false; setBusy(false); }
   }
@@ -106,10 +112,11 @@ export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock'
       <button className="brand" disabled={busy} onClick={back} aria-label="Dialogue Quests ホーム"><span className="brand-symbol">DQ</span><span>DIALOGUE<br /><b>QUESTS</b></span></button>
       <span className="brand-tagline">そのひと言、予想外。</span><span className="version">PLAYTEST <b>01</b></span>
     </header>
-    <div className={`connection ${mode}`}><span className="dot" /><strong>{mode === 'mock' ? 'モック接続' : 'OpenAI 接続設定'}</strong><span>{mode === 'mock' ? '動作確認モード · 自由入力への応答は限定的です' : 'サーバー経由で応答します · API利用料が発生します'}</span></div>
-    {!session && !selected && <MissionLibrary contents={contents} onSelect={setSelected} />}
-    {!session && selected && <MissionBriefing info={selected} busy={busy} onBack={back} onStart={() => void start(selected)} />}
-    {session && <MissionStage key={session.id} session={session} draft={draft} busy={busy} pending={!!attempt} onDraft={setDraft} onSend={send} onRestart={() => void start(session.info)} onBack={back} onDownload={format => void download(format)} />}
+    <div className={`connection ${mode}`}><span className="dot" /><strong>{mode === 'mock' ? 'モック接続' : mode === 'workers-ai' ? '無料AI接続' : 'OpenAI 接続設定'}</strong><span>{mode === 'mock' ? '動作確認モード · 自由入力への応答は限定的です' : mode === 'workers-ai' ? 'Cloudflare Workers AIの無料枠で応答します · 1日に使える量に上限があります' : 'サーバー経由で応答します · API利用料が発生します'}</span></div>
+    {quota !== null && <QuotaScreen resetAt={quota} inPlay={!!session} busy={busy} onRetry={() => { if (session && attempt) void send(attempt.message, true); else if (session) setQuota(null); else if (selected) void start(selected); else setQuota(null); }} onBack={back} />}
+    {quota === null && !session && !selected && <MissionLibrary contents={contents} onSelect={setSelected} />}
+    {quota === null && !session && selected && <MissionBriefing info={selected} busy={busy} onBack={back} onStart={() => void start(selected)} />}
+    {quota === null && session && <MissionStage key={session.id} session={session} draft={draft} busy={busy} pending={!!attempt} onDraft={setDraft} onSend={send} onRestart={() => void start(session.info)} onBack={back} onDownload={format => void download(format)} />}
     {error && <div className="error-panel" role="alert"><strong>ちょっと待って！</strong><p>{error}</p><div>{session && attempt && <button disabled={busy} onClick={() => void send(attempt.message, true)}>再試行</button>}{session && <button disabled={busy} onClick={refresh}>最新状態を読み直す</button>}<button disabled={busy} onClick={() => { setAttempt(null); setError(''); }}>閉じて編集する</button></div></div>}
     <footer><span>会話でひらく、ちいさな世界。</span><span>DIALOGUE QUESTS / EARLY PLAYTEST</span></footer>
   </div>;

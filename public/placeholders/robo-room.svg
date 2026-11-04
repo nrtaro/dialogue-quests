@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-label="散らかった部屋の仮イラスト">
+ <defs><pattern id="d" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="2" fill="#D8CBFF"/><circle cx="15" cy="15" r="2" fill="#FFD0C8"/></pattern></defs>
+ <rect width="320" height="200" fill="#ECE4FF"/><rect width="320" height="136" fill="url(#d)"/>
+ <path d="M0 136 H320 V200 H0 Z" fill="#FFE2A8"/>
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round">
+  <rect x="-2" y="132" width="324" height="7" fill="#fff"/>
+  <rect x="26" y="24" width="72" height="58" rx="4" fill="#BFE9FF"/><path d="M62 24 V82 M26 53 H98" fill="none"/>
+  <rect x="210" y="66" width="90" height="7" fill="#C98B4B"/>
+  <rect x="216" y="40" width="10" height="26" fill="#6FD9BD"/><rect x="226" y="46" width="9" height="20" fill="#FF6B5B"/><rect x="235" y="38" width="11" height="28" fill="#B7A4F0"/>
+  <path d="M40 150 H70 L66 190 H44 Z" fill="#CFC8E3"/><rect x="36" y="144" width="38" height="7" rx="2" fill="#B7A4F0"/>
+  <rect x="146" y="88" width="40" height="28" rx="3" fill="#FFFCF4" transform="rotate(-14 166 102)"/>
+  <path d="M146 92 L166 106 L186 92" fill="none" transform="rotate(-14 166 102)"/>
+  <rect x="236" y="164" width="18" height="15" fill="#6FD9BD" transform="rotate(-12 245 171)"/>
+  <path d="M120 176 l8 -11 14 3 5 12 -8 10 -14 -2z" fill="#fff"/>
+  <path d="M276 150 h14 v18 q0 5 6 7 q4 8 -4 9 h-12 q-6 0 -4 -6z" fill="#fff"/>
+ </g>
+ <path d="M166 99 c0-3 4-3 4 0 c0-3 4-3 4 0 c0 2-3 4-4 5 c-1-1-4-3-4-5z" fill="#FF6B5B" transform="rotate(-14 166 102)"/>
+</svg>

@@ -29,7 +29,10 @@ export async function body(request: Request): Promise<unknown> {
 export function json(data: unknown) { return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } }); }
 export function failure(error: unknown) {
   // A development reload can leave a live store holding the previous module's class.
-  if (error instanceof Error && 'kind' in error && error.kind === 'dialogue-game-error' && 'status' in error && typeof error.status === 'number' && error.status >= 400 && error.status < 600) return NextResponse.json({ error: error.message }, { status: error.status });
+  if (error instanceof Error && 'kind' in error && error.kind === 'dialogue-game-error' && 'status' in error && typeof error.status === 'number' && error.status >= 400 && error.status < 600) {
+    const extra = 'code' in error && error.code === 'ai-quota' && 'resetAt' in error && typeof error.resetAt === 'string' ? { code: 'ai-quota', resetAt: error.resetAt } : {};
+    return NextResponse.json({ error: error.message, ...extra }, { status: error.status });
+  }
   if (error instanceof z.ZodError) return NextResponse.json({ error: '入力またはAI応答の形式が不正です。本文は2000文字以内で入力してください。状態は変更していません。' }, { status: 400 });
   // Never return SDK errors, headers, credentials, or raw upstream error bodies.
   return NextResponse.json({ error: '応答を取得できませんでした。状態は変更していません。再試行できます。AI接続の場合はサーバーのAPIキー・利用枠・モデル設定も確認してください。' }, { status: 503 });

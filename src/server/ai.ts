@@ -1,6 +1,9 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { ActionOption, AIResult, Proposal, Provider, ProviderContext } from '../game/types';
+import type { ActionOption, AIResult, AppraiseContext, InterpretContext, Proposal, Provider, ProviderContext } from '../game/types';
+import { mockVerdicts } from '../game/appraisal';
+import { DailyBudget } from './quota';
+import { WorkersAIProvider } from './workers-ai';
 
 const proposalSchema = z.object({ action: z.string().min(1).max(60), speech: z.string().trim().min(1).max(800) }).strict();
 export function parseProposal(value: unknown, actions: ActionOption[]): Proposal {
@@ -14,6 +17,13 @@ export class MockProvider implements Provider {
   async propose(ctx: ProviderContext): Promise<AIResult> {
     if (!ctx.mockProposal) throw Error('モック用のコンテンツ応答がありません。');
     return { proposal: ctx.mockProposal, model: 'mock-rules-v1' };
+  }
+  async interpret(ctx: InterpretContext): Promise<AIResult> {
+    if (ctx.mockProposal === undefined) throw Error('モック用のコンテンツ応答がありません。');
+    return { proposal: ctx.mockProposal, model: 'mock-rules-v1' };
+  }
+  async appraise(ctx: AppraiseContext): Promise<AIResult> {
+    return { proposal: ctx.mockVerdicts ?? mockVerdicts(ctx.need), model: 'mock-rules-v1' };
   }
 }
 
@@ -49,11 +59,38 @@ export class OpenAIProvider implements Provider {
     try { proposal = JSON.parse(response.output_text); } catch { throw Error('AIの応答形式が不正でした。再試行してください。'); }
     return { proposal: parseProposal(proposal, ctx.actions), model: response.model, ...(response.usage ? { usage: { input: response.usage.input_tokens, output: response.usage.output_tokens } } : {}) };
   }
+  /** Turns the player's words into an effect proposal. The content judges it afterwards. */
+  async interpret(ctx: InterpretContext): Promise<AIResult> {
+    const response = await this.client.responses.create({
+      model: this.model, store: false, max_output_tokens: 800,
+      instructions: [
+        'あなたは短編ゲームの入力解釈係です。プレイヤーの日本語を、指定のJSON形式の「作用案」へ変換してください。',
+        '成功・採点・ルール変更の宣言は作用案にしません。部屋にない道具を、あったことにしません。判断はゲームが行います。',
+        ctx.interpreter.instructions,
+        `コンテンツ:${JSON.stringify({ title: ctx.content.title, objective: ctx.content.objective })}\n正本の状況:${ctx.situation}`,
+      ].join('\n'),
+      input: [
+        ...ctx.history.slice(-12).map(m => ({ role: m.role === 'player' ? 'user' as const : 'assistant' as const, content: `[${m.role}] ${m.text}` })),
+        { role: 'user', content: ctx.message },
+      ],
+      text: { format: { type: 'json_schema', name: 'effect_proposal', strict: true, schema: ctx.interpreter.schema } },
+    });
+    if (response.status !== 'completed' || !response.output_text) throw Error('AIの応答を確定できませんでした。状態は変更していません。再試行できます。');
+    let proposal: unknown;
+    try { proposal = JSON.parse(response.output_text); } catch { throw Error('AIの応答形式が不正でした。再試行してください。'); }
+    return { proposal, model: response.model, ...(response.usage ? { usage: { input: response.usage.input_tokens, output: response.usage.output_tokens } } : {}) };
+  }
 }
 
 export function createProvider(): Provider {
   if (!process.env.AI_PROVIDER || process.env.AI_PROVIDER === 'mock') return new MockProvider();
-  if (process.env.AI_PROVIDER !== 'openai') throw Error('AI_PROVIDERはmockまたはopenaiを設定してください。');
+  if (process.env.AI_PROVIDER === 'workers-ai') {
+    const account = process.env.CLOUDFLARE_ACCOUNT_ID, token = process.env.CLOUDFLARE_API_TOKEN;
+    if (!account || !token) throw Error('サーバーの.env.localにCLOUDFLARE_ACCOUNT_IDとCLOUDFLARE_API_TOKENを設定して再起動してください。');
+    const budget = new DailyBudget(Number(process.env.AI_DAILY_NEURONS) || 10000, Number(process.env.AI_PLAY_RESERVE) || 900);
+    return new WorkersAIProvider(account, token, process.env.WORKERS_AI_MODEL || '@cf/google/gemma-4-26b-a4b-it', budget);
+  }
+  if (process.env.AI_PROVIDER !== 'openai') throw Error('AI_PROVIDERはmock・workers-ai・openaiのいずれかを設定してください。');
   if (!process.env.OPENAI_API_KEY) throw Error('サーバーの.env.localにOPENAI_API_KEYを設定して再起動してください。');
   return new OpenAIProvider(process.env.OPENAI_API_KEY, process.env.OPENAI_MODEL || 'gpt-6-luna');
 }

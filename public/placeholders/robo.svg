@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 110" role="img" aria-label="掃除ロボの仮キャラクター">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M50 20V9" fill="none"/><circle cx="50" cy="7" r="5" fill="#FFD23F"/>
+  <path d="M21 54 C9 54 4 44 6 34" fill="none" stroke-width="6"/><path d="M79 56 C91 58 96 66 94 76" fill="none" stroke-width="6"/>
+  <circle cx="6" cy="31" r="6" fill="#fff"/><circle cx="94" cy="79" r="6" fill="#fff"/>
+  <path d="M22 72 H78 L85 95 H15 Z" fill="#fff"/><path d="M19 88 H81" fill="none" stroke-width="2.5"/>
+  <circle cx="30" cy="100" r="7" fill="#2B2340"/><circle cx="70" cy="100" r="7" fill="#2B2340"/>
+  <rect x="17" y="19" width="66" height="58" rx="22" fill="#6FD9BD"/>
+  <rect x="25" y="27" width="50" height="31" rx="11" fill="#2B2340"/>
+  <path d="M44 66 c0-5 6-5 6 -1 c0-4 6-4 6 1 c0 4-5 6-6 8 c-1-2-6-4-6-8z" fill="#FF6B5B" stroke-width="2"/>
+ </g>
+ <g fill="none" stroke="#6FD9BD" stroke-width="3.6" stroke-linecap="round"><path d="M35 45 q5 -8 10 0 M55 45 q5 -8 10 0"/><path d="M43 50 q7 6 14 0"/></g>
+ <circle cx="24" cy="62" r="3.5" fill="#FF8FA0"/><circle cx="76" cy="62" r="3.5" fill="#FF8FA0"/>
+</svg>

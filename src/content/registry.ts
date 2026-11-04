@@ -1,9 +1,18 @@
-import type { ContentDefinition } from '../game/types';
+import type { AnyContent, ContentDefinition, EffectContentDefinition } from '../game/types';
+import { cleaningRobot } from './cleaning-robot/content';
 import { heroWhisper } from './hero-whisper';
 
 // Type erasure is confined to registration. Each content owns and validates its own state.
-export function register<S>(content: ContentDefinition<S>): ContentDefinition {
-  return content as ContentDefinition;
+export function register<S>(content: ContentDefinition<S> | EffectContentDefinition<S>): AnyContent {
+  return content as AnyContent;
 }
-export const contents: ContentDefinition[] = [register(heroWhisper)];
+/** Approved contents shown to every player. */
+const published: AnyContent[] = [register(heroWhisper)];
+/** Prototypes, shown only when ENABLE_PROTOTYPES=1 (AGENTS.md). */
+const prototypes: AnyContent[] = [register(cleaningRobot)];
+
+export function listContents(env: Record<string, string | undefined> = process.env): AnyContent[] {
+  return env.ENABLE_PROTOTYPES === '1' ? [...published, ...prototypes] : published;
+}
+export const contents: AnyContent[] = listContents();
 export const contentList = contents.map(c => c.info);
