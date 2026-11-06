@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>AIデア放題！ 画面一覧 v0.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700;900&display=block" rel="stylesheet">
+<style>
+:root{
+  --cream:#FFF4DF; --paper:#FFFCF4; --coral:#FF6B5B; --mint:#6FD9BD; --lav:#B7A4F0;
+  --yellow:#FFD23F; --ink:#2B2340; --orange:#FF9A3C; --sky:#BFE9FF; --lavl:#ECE4FF; --mintl:#DDF6EE;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#E9E2D2;color:var(--ink);font-family:'Zen Maru Gothic','Yu Gothic',sans-serif;font-weight:700;width:2080px}
+.pop{font-family:'Mochiy Pop One','Yu Gothic',sans-serif;font-weight:400}
+.dela{font-family:'Dela Gothic One','Yu Gothic',sans-serif;font-weight:400}
+
+/* sheet */
+.sheet{padding:34px 50px 54px}
+.sheet-head{display:flex;align-items:baseline;gap:22px;margin-bottom:26px}
+.sheet-head h1{margin:0;font-size:34px}
+.sheet-head span{font-size:18px;color:#6b6380}
+.grid{display:grid;grid-template-columns:960px 960px;gap:44px 60px}
+.label{display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:24px}
+.label b{display:inline-grid;place-items:center;min-width:54px;height:40px;padding:0 10px;background:var(--ink);color:#fff;border-radius:10px;font-size:22px}
+.label i{font-style:normal;font-size:15px;color:#7a7290;font-family:'Zen Maru Gothic';font-weight:700}
+.screen{width:960px;height:540px;position:relative;overflow:hidden;background:var(--cream);border-radius:4px;box-shadow:0 12px 28px rgba(60,40,20,.18)}
+.abs{position:absolute}
+svg{overflow:visible}
+
+/* shared UI */
+.minilogo{position:absolute;left:18px;top:14px;font-family:'Dela Gothic One';font-size:22px;letter-spacing:.5px;z-index:5;
+  color:var(--ink);display:flex;align-items:center}
+.minilogo .ai{background:var(--coral);color:#fff;border:3px solid var(--ink);border-radius:10px 12px 8px 12px;padding:0 6px;margin-right:2px;transform:rotate(-6deg);display:inline-block;line-height:1.25}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:'Mochiy Pop One';border:3px solid var(--ink);
+  border-radius:16px 20px 14px 22px/20px 14px 22px 16px;box-shadow:4px 4px 0 var(--ink);background:var(--yellow);color:var(--ink);padding:8px 18px;font-size:18px;white-space:nowrap}
+.btn.coral{background:var(--coral);color:#fff;text-shadow:0 2px 0 rgba(43,35,64,.35)}
+.btn.mint{background:var(--mint)}
+.btn.ghost{background:var(--paper)}
+.btn.small{font-size:14px;padding:5px 12px;box-shadow:3px 3px 0 var(--ink);border-width:2.5px}
+.link{font-family:'Mochiy Pop One';font-size:13px;text-decoration:underline;text-underline-offset:4px;color:#5d5574}
+.panel{background:var(--paper);border:3px solid var(--ink);border-radius:18px 24px 16px 26px/22px 16px 26px 18px;box-shadow:5px 5px 0 var(--ink)}
+.chip{display:inline-block;font-family:'Mochiy Pop One';font-size:12px;padding:3px 10px;border:2.5px solid var(--ink);border-radius:999px;background:#fff}
+.sticker{position:absolute;background:#fff;border:3px solid var(--ink);border-radius:12px 16px 10px 14px;box-shadow:3px 3px 0 var(--ink);padding:4px 10px;font-family:'Mochiy Pop One';font-size:14px;white-space:nowrap}
+.bubble{position:absolute;background:#fff;border:3px solid var(--ink);border-radius:18px 20px 16px 22px;padding:6px 12px;font-family:'Mochiy Pop One';font-size:15px;line-height:1.35;z-index:4;white-space:nowrap}
+.bubble::after{content:"";position:absolute;width:14px;height:14px;background:inherit;border-right:3px solid var(--ink);border-bottom:3px solid var(--ink);bottom:-9.5px;left:22px;transform:rotate(45deg)}
+.bubble.tr::after{left:auto;right:22px}
+.bubble.up::after{bottom:auto;top:-9.5px;transform:rotate(225deg)}
+.bubble.lf::after{left:-9.5px;bottom:auto;top:calc(50% - 7px);transform:rotate(135deg)}
+.bubble.rt::after{left:auto;right:-9.5px;bottom:auto;top:calc(50% - 7px);transform:rotate(-45deg)}
+.bubble.shout{background:var(--yellow);border-radius:6px 22px 8px 20px}
+.stars{color:var(--orange);letter-spacing:1px;font-size:13px;-webkit-text-stroke:.6px var(--ink)}
+.stars .off{color:#E8DEC8}
+.tape{position:absolute;width:70px;height:20px;background:rgba(255,210,63,.75);border-left:2px dashed rgba(43,35,64,.25);border-right:2px dashed rgba(43,35,64,.25)}
+
+/* ===== 01 title ===== */
+.s1{background:#FFF4DF}
+.s1 .burst{position:absolute;inset:-300px;background:repeating-conic-gradient(from 0deg at 50% 50%,#FFE7B0 0 7deg,#FFF4DF 7deg 14deg);transform:translateY(-40px)}
+.s1 .dots{position:absolute;inset:0;background-image:radial-gradient(rgba(43,35,64,.10) 1.6px,transparent 1.8px);background-size:16px 16px;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 42%,transparent 34%,#000 70%)}
+.logo{position:absolute;left:0;right:0;top:132px;display:flex;justify-content:center;align-items:flex-end;font-family:'Dela Gothic One';z-index:3}
+.logo .ai{position:relative;background:var(--coral);color:#fff;font-size:84px;line-height:1;padding:8px 16px 12px;border:5px solid var(--ink);
+  border-radius:30px 40px 26px 44px/40px 26px 44px 30px;box-shadow:8px 8px 0 var(--ink);transform:rotate(-7deg);margin-right:6px;letter-spacing:2px}
+.logo .ai small{position:absolute;top:-30px;left:50%;transform:translateX(-50%) rotate(4deg);font-size:20px;background:var(--yellow);color:var(--ink);border:3px solid var(--ink);border-radius:999px;padding:1px 12px;letter-spacing:4px}
+.logo .w{font-size:90px;line-height:1;color:var(--yellow);-webkit-text-stroke:10px var(--ink);paint-order:stroke fill;text-shadow:6px 6px 0 var(--ink);letter-spacing:1px}
+.logo .w.dea{color:#fff}
+.logo .w.bang{color:var(--coral);transform:rotate(12deg);display:inline-block;margin-left:2px}
+.tagline{position:absolute;top:268px;left:50%;transform:translateX(-50%) rotate(-1.5deg);background:var(--mint);border:3px solid var(--ink);padding:6px 22px;
+  font-family:'Mochiy Pop One';font-size:19px;border-radius:6px;box-shadow:4px 4px 0 var(--ink);z-index:3;white-space:nowrap}
+.playbtn{position:absolute;left:50%;top:342px;transform:translateX(-50%);font-size:44px;padding:14px 58px 16px;border-width:5px;box-shadow:7px 7px 0 var(--ink);z-index:3;border-radius:28px 34px 26px 36px/34px 26px 36px 28px}
+.subbtns{position:absolute;left:0;right:0;top:458px;display:flex;justify-content:center;gap:16px;z-index:3}
+.meta-sticker{transform:rotate(8deg);background:var(--yellow)}
+
+/* ===== 02 select ===== */
+.s2{background:var(--cream);background-image:radial-gradient(rgba(43,35,64,.07) 1.5px,transparent 1.7px);background-size:18px 18px}
+.s2 h2{position:absolute;left:50%;top:10px;transform:translateX(-50%) rotate(-1deg);margin:0;font-family:'Dela Gothic One';font-size:30px;font-weight:400;
+  background:var(--yellow);border:3px solid var(--ink);padding:2px 22px;border-radius:12px 18px 10px 16px;box-shadow:4px 4px 0 var(--ink)}
+.filters{position:absolute;left:20px;top:70px;display:flex;gap:8px;align-items:center}
+.filters .chip.on{background:var(--ink);color:#fff}
+.cards{position:absolute;left:20px;top:108px;display:grid;grid-template-columns:repeat(5,172px);gap:16px 14px}
+.card{height:196px;background:#fff;border:3px solid var(--ink);border-radius:14px 18px 12px 20px/18px 12px 20px 14px;box-shadow:4px 4px 0 var(--ink);overflow:hidden;position:relative}
+.card .th{height:108px;border-bottom:3px solid var(--ink);position:relative;overflow:hidden}
+.card .th svg{width:100%;height:100%;display:block}
+.card .tag{position:absolute;left:6px;top:6px;font-size:10.5px;padding:1px 7px;border-width:2px}
+.card .nm{font-family:'Mochiy Pop One';font-size:14.5px;line-height:1.25;padding:8px 10px 0;height:46px}
+.card .mt{display:flex;justify-content:space-between;align-items:center;padding:4px 10px 0;font-size:12px}
+.card.sel{transform:scale(1.1) rotate(-2.5deg);border:4px solid var(--ink);box-shadow:7px 7px 0 var(--coral);z-index:6;overflow:visible;outline:5px solid var(--yellow);outline-offset:3px}
+.card.sel .th{border-radius:10px 14px 0 0}
+.card.sel .go{position:absolute;right:-12px;bottom:-16px;font-size:13px;padding:4px 12px}
+
+/* ===== 03 intro ===== */
+.s3 .scene{position:absolute;left:0;top:0;width:610px;height:540px;overflow:hidden;border-right:4px solid var(--ink)}
+.s3 .side{position:absolute;left:636px;top:62px;width:300px;height:452px;padding:18px 20px}
+.s3 .side h3{margin:8px 0 10px;font-family:'Dela Gothic One';font-weight:400;font-size:31px;line-height:1.18}
+.role{background:var(--mintl);border:2.5px dashed var(--ink);border-radius:12px;padding:8px 12px;margin-bottom:10px}
+.role small{display:block;font-size:12px;color:#5d5574}
+.role b{font-family:'Mochiy Pop One';font-weight:400;font-size:20px}
+.mission{font-family:'Mochiy Pop One';font-size:16px;line-height:1.5;margin:4px 0 12px;padding-left:12px;border-left:6px solid var(--coral)}
+.metas{display:flex;gap:10px;margin-bottom:16px}
+.metas .chip{font-size:13px;padding:4px 12px}
+
+/* ===== 04 play ===== */
+.s4{background:var(--cream)}
+.topbar{position:absolute;left:0;right:0;top:0;height:64px;background:var(--paper);border-bottom:3px solid var(--ink);display:flex;align-items:center;padding-left:190px;gap:14px;z-index:5}
+.obj{font-family:'Mochiy Pop One';font-size:15px;background:var(--yellow);border:2.5px solid var(--ink);border-radius:10px 14px 9px 12px;padding:4px 12px}
+.prog{display:flex;gap:10px;font-size:12.5px;align-items:center}
+.prog .p{display:flex;align-items:center;gap:5px;background:#fff;border:2.5px solid var(--ink);border-radius:999px;padding:3px 10px}
+.meter{display:inline-flex;gap:2px}
+.meter i{width:11px;height:11px;border:2px solid var(--ink);border-radius:3px;background:#fff}
+.meter i.f{background:var(--mint)}
+.scorelink{position:absolute;right:16px;top:20px;font-size:12px;padding:3px 10px;border:2px solid #8a83a0;border-radius:8px;color:#5d5574;background:#fff;font-family:'Mochiy Pop One'}
+.s4 .scene{position:absolute;left:16px;top:78px;width:438px;height:372px;border:3px solid var(--ink);border-radius:16px 22px 14px 20px;overflow:hidden;box-shadow:4px 4px 0 var(--ink)}
+.policy{position:absolute;left:28px;top:368px;width:414px;background:rgba(255,252,244,.96);border:2.5px solid var(--ink);border-radius:12px;padding:6px 10px;z-index:3}
+.policy small{font-family:'Mochiy Pop One';font-size:11px;color:#5d5574}
+.policy .chip{margin:3px 4px 0 0;font-size:11.5px}
+.chat{position:absolute;left:470px;top:78px;width:474px;height:372px;padding:0;overflow:hidden}
+.chat .hd{height:34px;border-bottom:2.5px solid var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-family:'Mochiy Pop One';font-size:13px;background:var(--lavl);border-radius:16px 22px 0 0}
+.msgs{position:absolute;top:36px;left:0;right:18px;bottom:0;padding:0 12px 10px;display:flex;flex-direction:column;justify-content:flex-end;gap:9px}
+.msgs .fade{position:absolute;left:0;right:0;top:0;height:46px;background:linear-gradient(var(--paper),rgba(255,252,244,0));z-index:2;text-align:center;font-size:11px;color:#8a83a0;padding-top:4px}
+.m{display:flex;gap:8px;align-items:flex-end}
+.m .av{width:38px;height:38px;flex:none;border:2.5px solid var(--ink);border-radius:50%;background:var(--mintl);overflow:hidden}
+.m .tx{background:#fff;border:2.5px solid var(--ink);border-radius:14px 16px 16px 4px;padding:6px 11px;font-size:13.5px;line-height:1.45;max-width:340px}
+.m.me{flex-direction:row-reverse}
+.m.me .tx{background:var(--yellow);border-radius:16px 14px 4px 16px}
+.m.me .av{background:var(--coral);display:grid;place-items:center;color:#fff;font-family:'Mochiy Pop One';font-size:12px}
+.ev{align-self:center;background:var(--coral);color:#fff;border:2.5px solid var(--ink);border-radius:8px;padding:3px 12px;font-family:'Mochiy Pop One';font-size:12.5px;transform:rotate(-1.5deg);box-shadow:3px 3px 0 var(--ink)}
+.sb{position:absolute;right:6px;top:44px;bottom:10px;width:9px;border-radius:9px;background:#EDE5D2;border:1.5px solid #cfc5ad}
+.sb i{position:absolute;left:0;right:0;bottom:0;height:90px;background:var(--lav);border-radius:9px}
+.inputbar{position:absolute;left:16px;right:16px;bottom:12px;height:64px;display:flex;gap:12px;align-items:center;padding:9px 10px 9px 12px}
+.inputbar .in{flex:1;height:42px;border:2.5px solid var(--ink);border-radius:12px;background:#fff;display:flex;align-items:center;padding:0 14px;font-size:14px;color:#9a93ad}
+.inputbar .in b{width:2px;height:20px;background:var(--ink);margin-right:8px}
+.micbtn{width:44px;height:44px;border-radius:50%;border:3px solid var(--ink);background:var(--mint);display:grid;place-items:center;box-shadow:3px 3px 0 var(--ink)}
+
+/* ===== 05 result ===== */
+.s5{background:#FFF4DF;background-image:repeating-linear-gradient(-45deg,rgba(183,164,240,.13) 0 14px,transparent 14px 28px)}
+.res-head{position:absolute;left:196px;top:14px;width:520px;height:106px;padding:8px 18px;background:var(--paper);transform:rotate(-1deg)}
+.res-head .k{font-family:'Mochiy Pop One';font-size:12px;color:#fff;background:var(--ink);border-radius:6px;padding:1px 8px;display:inline-block}
+.res-head h2{margin:2px 0 0;font-family:'Dela Gothic One';font-weight:400;font-size:36px;line-height:1.1}
+.res-head p{margin:2px 0 0;font-family:'Mochiy Pop One';font-size:14px;color:var(--coral)}
+.polaroid{position:absolute;background:#fff;border:3px solid var(--ink);padding:6px 6px 18px;box-shadow:4px 4px 0 var(--ink)}
+.badge-wrap{position:absolute;top:12px;text-align:center;font-family:'Mochiy Pop One';font-size:11px}
+.stamp{width:86px;height:86px;border-radius:50%;border:4px solid var(--ink);display:grid;place-items:center;font-family:'Dela Gothic One';font-size:24px;margin:2px auto 0;box-shadow:3px 3px 0 var(--ink)}
+.rankbadge{width:92px;height:92px;margin:0 auto;display:grid;place-items:center;position:relative}
+.rankbadge span{position:absolute;font-family:'Dela Gothic One';font-size:46px;color:#fff;-webkit-text-stroke:8px var(--ink);paint-order:stroke fill;top:14px}
+.scores{position:absolute;left:18px;top:128px;width:290px;height:150px;padding:10px 14px}
+.scores h4,.meisho h4{margin:0 0 6px;font-family:'Mochiy Pop One';font-weight:400;font-size:14px}
+.row{display:flex;align-items:center;gap:8px;font-size:12.5px;margin:6px 0}
+.row span{width:78px}
+.bar{flex:1;height:13px;border:2.5px solid var(--ink);border-radius:8px;background:#fff;overflow:hidden}
+.bar i{display:block;height:100%;border-right:2.5px solid var(--ink)}
+.row em{font-style:normal;font-family:'Mochiy Pop One';font-size:12px;width:20px;text-align:right}
+.meisho{position:absolute;left:18px;top:294px;width:290px;height:178px;padding:10px 12px;background:#FFF9E0}
+.meisho .pic{height:92px;border:2.5px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--lavl)}
+.meisho p{margin:6px 0 0;font-size:12px;line-height:1.45}
+.meisho p b{background:var(--yellow);padding:0 3px}
+.judges{position:absolute;left:326px;top:128px;display:flex;gap:12px}
+.judge{width:196px;height:344px;position:relative;padding:0}
+.judge .por{height:118px;border-bottom:3px solid var(--ink);border-radius:15px 21px 0 0;display:grid;place-items:end center;overflow:hidden}
+.judge .nm{position:absolute;top:100px;left:10px;font-family:'Mochiy Pop One';font-size:13px;background:var(--ink);color:#fff;padding:2px 10px;border-radius:8px;transform:rotate(-3deg)}
+.judge .vw{position:absolute;top:8px;right:8px;font-size:11px}
+.judge .say{margin:22px 10px 0;background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:8px 10px;font-size:13px;line-height:1.5;min-height:142px;position:relative}
+.judge .say::before{content:"";position:absolute;top:-9px;left:30px;width:13px;height:13px;background:#fff;border-left:2.5px solid var(--ink);border-top:2.5px solid var(--ink);transform:rotate(45deg)}
+.judge .sc{position:absolute;bottom:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.judge .sc b{font-family:'Dela Gothic One';font-weight:400;font-size:18px}
+.res-foot{position:absolute;left:18px;right:18px;bottom:12px;display:flex;align-items:center;gap:14px}
+
+/* ===== 06 records ===== */
+.s6{background:#FBEFD6;background-image:linear-gradient(rgba(111,217,189,.25) 1.5px,transparent 1.5px),linear-gradient(90deg,rgba(111,217,189,.25) 1.5px,transparent 1.5px);background-size:24px 24px}
+.s6 h2{position:absolute;left:206px;top:12px;margin:0;font-family:'Dela Gothic One';font-weight:400;font-size:28px;background:var(--lav);border:3px solid var(--ink);padding:2px 18px;border-radius:12px 16px 10px 18px;box-shadow:4px 4px 0 var(--ink);transform:rotate(-2deg)}
+.rtabs{position:absolute;right:20px;top:20px;display:flex;gap:8px}
+.rtabs .chip.on{background:var(--ink);color:#fff}
+.recs{position:absolute;left:22px;top:76px;display:grid;grid-template-columns:repeat(3,292px);gap:20px 22px}
+.rec{height:206px;flex-wrap:wrap;align-content:flex-start;background:#fff;border:3px solid var(--ink);border-radius:6px 10px 6px 12px;box-shadow:4px 4px 0 var(--ink);display:flex;gap:10px;padding:10px;position:relative}
+.rec:nth-child(1){transform:rotate(-1.2deg)}.rec:nth-child(2){transform:rotate(.8deg)}.rec:nth-child(3){transform:rotate(-.6deg)}
+.rec:nth-child(4){transform:rotate(1deg)}.rec:nth-child(5){transform:rotate(-1deg)}.rec:nth-child(6){transform:rotate(.6deg)}
+.rec .ph{width:108px;height:112px;flex:none;border:2.5px solid var(--ink);border-radius:6px;overflow:hidden;background:#fff}
+.rec .ph svg{width:100%;height:100%;display:block}
+.rec .bd{flex:1;min-width:0;display:flex;flex-direction:column;height:112px}
+.rec .gm{font-size:10.5px;color:#7a7290}
+.rec h5{margin:1px 0 6px;font-family:'Mochiy Pop One';font-weight:400;font-size:15px;line-height:1.3}
+.rec dl{margin:0;font-size:11.5px;line-height:1.35}
+.rec dt{display:inline-block;font-family:'Mochiy Pop One';font-size:9.5px;background:var(--ink);color:#fff;border-radius:4px;padding:0 5px;margin-right:4px}
+.rec dd{margin:0 0 4px;display:inline}
+.rec .q{width:100%;margin-top:4px;font-family:'Mochiy Pop One';font-size:14px;text-align:center;background:var(--mintl);border-radius:8px;padding:3px 8px;border:2px solid var(--ink)}
+.rec .st{position:absolute;right:-10px;top:-12px;font-family:'Dela Gothic One';font-size:14px;padding:2px 8px;border:3px solid var(--ink);border-radius:8px;transform:rotate(8deg);box-shadow:2px 2px 0 var(--ink)}
+.rec .tape{top:-11px;left:30px;transform:rotate(-6deg)}
+</style>
+</head>
+<body>
+
+<!-- ============ SVG LIBRARY ============ -->
+<svg width="0" height="0" style="position:absolute">
+<defs>
+  <pattern id="wallp" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="7" cy="7" r="2.4" fill="#D8CBFF"/><circle cx="21" cy="21" r="2.4" fill="#FFD0C8"/></pattern>
+  <pattern id="city" width="20" height="20" patternUnits="userSpaceOnUse"><rect x="4" y="4" width="5" height="6" fill="#FFF4DF"/><rect x="12" y="4" width="5" height="6" fill="#FFF4DF"/></pattern>
+</defs>
+
+<!-- cleaning robot body -->
+<symbol id="robo" viewBox="0 0 100 110">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M50 20V9" fill="none"/>
+  <circle cx="50" cy="7" r="5" fill="#FFD23F"/>
+  <path d="M21 54 C9 54 4 44 6 34" fill="none" stroke-width="6"/>
+  <path d="M79 56 C91 58 96 66 94 76" fill="none" stroke-width="6"/>
+  <circle cx="6" cy="31" r="6" fill="#fff"/>
+  <circle cx="94" cy="79" r="6" fill="#fff"/>
+  <path d="M22 72 H78 L85 95 H15 Z" fill="#fff"/>
+  <path d="M19 88 H81" fill="none" stroke-width="2.5"/>
+  <circle cx="30" cy="100" r="7" fill="#2B2340"/><circle cx="70" cy="100" r="7" fill="#2B2340"/>
+  <rect x="17" y="19" width="66" height="58" rx="22" fill="#6FD9BD"/>
+  <rect x="25" y="27" width="50" height="31" rx="11" fill="#2B2340"/>
+  <path d="M44 66 c0-5 6-5 6 -1 c0-4 6-4 6 1 c0 4-5 6-6 8 c-1-2-6-4-6-8z" fill="#FF6B5B" stroke-width="2"/>
+  <path d="M30 22 q4 -2 8 0" fill="none" stroke="#fff" stroke-width="2.5"/>
+ </g>
+</symbol>
+<symbol id="f-happy" viewBox="0 0 100 110"><g fill="none" stroke="#6FD9BD" stroke-width="3.6" stroke-linecap="round"><path d="M35 45 q5 -8 10 0 M55 45 q5 -8 10 0"/><path d="M43 50 q7 6 14 0"/></g><circle cx="24" cy="62" r="3.5" fill="#FF8FA0"/><circle cx="76" cy="62" r="3.5" fill="#FF8FA0"/></symbol>
+<symbol id="f-shock" viewBox="0 0 100 110"><g fill="none" stroke="#6FD9BD" stroke-width="3.4" stroke-linecap="round"><circle cx="40" cy="41" r="5.5"/><circle cx="60" cy="41" r="5.5"/><ellipse cx="50" cy="52" rx="3.5" ry="3"/></g><path d="M86 24 q-5 8 0 10 q5 -2 0 -10z" fill="#BFE9FF" stroke="#2B2340" stroke-width="2"/></symbol>
+<symbol id="f-star" viewBox="0 0 100 110"><g fill="#FFD23F"><path d="M40 34 l2.4 5 5 2.4 -5 2.4 -2.4 5 -2.4 -5 -5 -2.4 5 -2.4z"/><path d="M60 34 l2.4 5 5 2.4 -5 2.4 -2.4 5 -2.4 -5 -5 -2.4 5 -2.4z"/></g><path d="M44 49 h12 q0 7 -6 7 q-6 0 -6 -7z" fill="#FF6B5B"/><circle cx="24" cy="62" r="3.5" fill="#FF8FA0"/><circle cx="76" cy="62" r="3.5" fill="#FF8FA0"/></symbol>
+<symbol id="f-proud" viewBox="0 0 100 110"><g fill="none" stroke="#6FD9BD" stroke-width="3.6" stroke-linecap="round"><path d="M35 41 h10 M55 41 h10"/><path d="M42 49 q8 7 16 0"/></g><path d="M8 18 l3 -6 3 6 -3 6z M90 14 l2 -4 2 4 -2 4z" fill="#FFD23F" stroke="#2B2340" stroke-width="1.5"/></symbol>
+
+<!-- old vacuum -->
+<symbol id="vacuum" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M66 42 C94 38 98 12 74 8" fill="none" stroke-width="10"/>
+  <path d="M66 42 C94 38 98 12 74 8" fill="none" stroke="#9C93B5" stroke-width="4.5"/>
+  <rect x="60" y="1" width="26" height="11" rx="3" transform="rotate(-18 73 7)" fill="#FFD23F"/>
+  <path d="M22 36 q24 -18 48 0" fill="#B7A4F0"/>
+  <rect x="11" y="34" width="68" height="50" rx="18" fill="#CFC8E3"/>
+  <circle cx="22" cy="90" r="6" fill="#2B2340"/><circle cx="68" cy="90" r="6" fill="#2B2340"/>
+  <path d="M22 49 L38 54" stroke-width="5"/><path d="M68 49 L52 54" stroke-width="5"/>
+  <circle cx="32" cy="59" r="3" fill="#2B2340"/><circle cx="58" cy="59" r="3" fill="#2B2340"/>
+  <circle cx="58" cy="59" r="8.5" fill="none" stroke-width="2.5"/>
+  <path d="M66 62 q7 7 3 16" fill="none" stroke-width="1.5"/>
+  <path d="M30 72 c5 -7 12 -7 15 -2 c3 -5 10 -5 15 2 c-6 4 -11 3 -15 0 c-4 3 -9 4 -15 0z" fill="#fff"/>
+  <rect x="15" y="40" width="10" height="9" rx="2" fill="#FFF4DF" stroke-width="2"/>
+ </g>
+</symbol>
+
+<!-- plush bear -->
+<symbol id="plush" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="50" cy="80" rx="25" ry="18" fill="#FFB4A2"/>
+  <ellipse cx="27" cy="77" rx="8" ry="11" fill="#FFB4A2" transform="rotate(30 27 77)"/>
+  <ellipse cx="73" cy="77" rx="8" ry="11" fill="#FFB4A2" transform="rotate(-30 73 77)"/>
+  <ellipse cx="50" cy="84" rx="12" ry="9" fill="#FFF4DF" stroke-width="2" stroke-dasharray="3 3"/>
+  <circle cx="26" cy="20" r="11" fill="#FFB4A2"/><circle cx="74" cy="20" r="11" fill="#FFB4A2"/>
+  <circle cx="26" cy="20" r="5" fill="#FF8C7A" stroke="none"/><circle cx="74" cy="20" r="5" fill="#FF8C7A" stroke="none"/>
+  <ellipse cx="50" cy="42" rx="31" ry="26" fill="#FFB4A2"/>
+  <path d="M42 20 L58 17 M45 16 l1 6 M50 15 l1 6 M55 14 l1 6" fill="none" stroke-width="2"/>
+  <circle cx="38" cy="40" r="5.5" fill="#6FD9BD"/>
+  <circle cx="36.5" cy="40" r="1" fill="#2B2340" stroke="none"/><circle cx="39.5" cy="40" r="1" fill="#2B2340" stroke="none"/>
+  <path d="M58 36 l8 8 M66 36 l-8 8" fill="none"/>
+  <ellipse cx="50" cy="53" rx="10" ry="7.5" fill="#FFF4DF"/>
+  <ellipse cx="50" cy="50" rx="3.5" ry="2.4" fill="#2B2340"/>
+  <path d="M45 56 q5 3 10 0" fill="none" stroke-width="2.5"/>
+  <path d="M30 47 q-5 8 0 11 q5 -3 0 -11z" fill="#BFE9FF" stroke-width="2"/>
+  <path d="M44 74 c0-5 6-5 6 -1 c0-4 6-4 6 1 c0 4-5 6-6 8 c-1-2-6-4-6-8z" fill="#FF6B5B" stroke-width="2"/>
+ </g>
+</symbol>
+
+<!-- foods -->
+<symbol id="carrot" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M50 26 q-14 -16 -6 -22 q6 6 6 18 q4 -14 14 -16 q2 10 -10 20" fill="#6FD9BD"/>
+  <path d="M28 46 L14 34" fill="none" stroke-width="4"/><circle cx="13" cy="32" r="4" fill="#FF9A3C"/>
+  <path d="M28 28 Q50 18 72 28 L55 96 Q50 100 45 96 Z" fill="#FF9A3C"/>
+  <path d="M36 60 h8 M56 72 h7 M42 82 h6" fill="none" stroke-width="2"/>
+  <path d="M38 38 L46 42 M62 38 L54 42" stroke-width="3.5"/>
+  <circle cx="43" cy="45" r="2.5" fill="#2B2340"/><circle cx="57" cy="45" r="2.5" fill="#2B2340"/>
+  <path d="M44 52 h12 q0 8 -6 8 q-6 0 -6 -8z" fill="#FF6B5B"/>
+ </g>
+</symbol>
+<symbol id="tomato" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <circle cx="50" cy="58" r="34" fill="#FF6B5B"/>
+  <path d="M50 28 l-12 -6 8 -2 4 -10 4 10 8 2z" fill="#6FD9BD"/>
+  <path d="M30 38 q6 -6 14 -4" fill="none" stroke="#fff" stroke-width="3"/>
+  <circle cx="40" cy="55" r="3" fill="#2B2340"/><circle cx="60" cy="55" r="3" fill="#2B2340"/>
+  <path d="M34 47 q6 -4 11 0 M55 47 q6 -4 11 0" fill="none" stroke-width="2.5"/>
+  <path d="M44 66 q6 -4 12 0" fill="none"/>
+  <path d="M42 82 l8 4 8 -4 -8 -4z M50 82 v0" fill="#FFD23F" stroke-width="2.5"/>
+  <path d="M82 40 q-4 7 0 9 q4 -2 0 -9z" fill="#BFE9FF" stroke-width="2"/>
+ </g>
+</symbol>
+<symbol id="onion" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M50 8 q4 14 26 32 q10 34 -26 52 q-36 -18 -26 -52 q22 -18 26 -32z" fill="#E6D8FF"/>
+  <path d="M50 20 q-14 28 -8 70 M50 20 q14 28 8 70" fill="none" stroke-width="2"/>
+  <circle cx="40" cy="56" r="2.5" fill="#2B2340"/><circle cx="60" cy="56" r="2.5" fill="#2B2340"/>
+  <path d="M44 66 q6 4 12 0" fill="none"/>
+  <path d="M36 62 q-3 8 0 9 q3 -1 0 -9z M64 62 q-3 8 0 9 q3 -1 0 -9z" fill="#BFE9FF" stroke-width="1.8"/>
+ </g>
+</symbol>
+
+<!-- rain cloud -->
+<symbol id="cloud" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M28 72 q8 12 0 20 M50 74 q8 12 0 20 M72 72 q8 12 0 20" fill="none" stroke="#6FD9BD" stroke-width="4"/>
+  <path d="M20 66 a15 15 0 0 1 4 -29 a22 22 0 0 1 40 -10 a18 18 0 0 1 22 22 a12 12 0 0 1 -4 17 z" fill="#fff"/>
+  <path d="M26 60 q20 6 52 0" fill="none" stroke="#D8CBFF" stroke-width="4"/>
+  <path d="M38 44 q4 4 8 0 M56 44 q4 4 8 0" fill="none"/>
+  <ellipse cx="51" cy="54" rx="4" ry="3" fill="#2B2340"/>
+  <circle cx="33" cy="51" r="3" fill="#FFB4A2" stroke="none"/><circle cx="69" cy="51" r="3" fill="#FFB4A2" stroke="none"/>
+ </g>
+</symbol>
+
+<!-- kaiju -->
+<symbol id="kaiju" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M78 80 q18 2 20 -12 q-6 6 -18 4" fill="#6FD9BD"/>
+  <path d="M74 26 l12 -2 -6 10 M82 40 l12 0 -9 9 M84 56 l12 2 -10 7" fill="#FFD23F"/>
+  <path d="M22 94 C12 62 20 28 46 22 C72 18 86 42 82 70 L84 94 Z" fill="#6FD9BD"/>
+  <path d="M34 94 C28 70 34 54 50 52 C64 52 70 70 66 94 Z" fill="#FFF4DF"/>
+  <path d="M40 66 h20 M38 76 h24 M38 86 h24" fill="none" stroke-width="2"/>
+  <circle cx="40" cy="38" r="8" fill="#fff"/><circle cx="60" cy="36" r="8" fill="#fff"/>
+  <circle cx="42" cy="39" r="3.5" fill="#2B2340"/><circle cx="62" cy="37" r="3.5" fill="#2B2340"/>
+  <path d="M36 48 q14 10 30 -2 q-4 10 -15 10 q-11 0 -15 -8z" fill="#FF6B5B"/>
+  <path d="M42 51 l2 3 2 -3 M56 50 l2 3 2 -3" fill="#fff" stroke-width="1.5"/>
+  <path d="M24 60 l-10 -4 M28 70 l-10 2" fill="none" stroke-width="5"/>
+ </g>
+</symbol>
+
+<!-- mirror -->
+<symbol id="mirror" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M38 82 l-8 16 M62 82 l8 16 M50 82 v16" fill="none" stroke-width="4"/>
+  <path d="M20 50 L6 36" fill="none" stroke-width="4"/><circle cx="5" cy="34" r="4.5" fill="#fff"/>
+  <path d="M80 50 L94 38" fill="none" stroke-width="4"/><circle cx="95" cy="36" r="4.5" fill="#fff"/>
+  <ellipse cx="50" cy="45" rx="31" ry="39" fill="#FFD23F"/>
+  <ellipse cx="50" cy="45" rx="22" ry="30" fill="#DCEBFF"/>
+  <path d="M36 28 q4 -8 12 -10 M34 36 l4 -6" fill="none" stroke="#fff" stroke-width="3.5"/>
+  <circle cx="42" cy="44" r="5" fill="#fff"/><circle cx="58" cy="44" r="5" fill="#fff"/>
+  <circle cx="42" cy="44" r="2.4" fill="#2B2340"/><circle cx="58" cy="44" r="2.4" fill="#2B2340"/>
+  <ellipse cx="50" cy="58" rx="5" ry="6" fill="#FF6B5B"/>
+  <path d="M68 28 q-4 7 0 9 q4 -2 0 -9z" fill="#BFE9FF" stroke-width="2"/>
+  <circle cx="50" cy="6" r="5" fill="#FF6B5B"/>
+ </g>
+</symbol>
+
+<!-- hero & fairy -->
+<symbol id="hero" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M34 50 L22 90 H78 L66 50 Z" fill="#FF6B5B"/>
+  <rect x="36" y="52" width="28" height="30" rx="8" fill="#B7A4F0"/>
+  <path d="M42 82 v12 M58 82 v12" fill="none" stroke-width="6"/>
+  <path d="M66 62 L84 42" fill="none" stroke-width="7" stroke="#C98B4B"/>
+  <path d="M66 62 L84 42" fill="none" stroke-width="2"/>
+  <path d="M60 64 l10 4" fill="none" stroke-width="4"/>
+  <circle cx="50" cy="36" r="18" fill="#FFE0C2"/>
+  <path d="M31 34 Q32 14 50 14 Q68 14 69 34 Z" fill="#DCDCE8"/>
+  <path d="M50 14 q2 -12 14 -10 q-4 6 -12 10z" fill="#FF6B5B"/>
+  <circle cx="44" cy="40" r="2.4" fill="#2B2340"/><circle cx="57" cy="40" r="2.4" fill="#2B2340"/>
+  <path d="M40 34 l6 2 M61 34 l-6 2" fill="none" stroke-width="2"/>
+  <path d="M46 47 q2 -2 4 0 q2 2 4 0" fill="none" stroke-width="2.5"/>
+ </g>
+</symbol>
+<symbol id="fairy" viewBox="0 0 60 60">
+ <g stroke="#2B2340" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">
+  <ellipse cx="18" cy="24" rx="10" ry="15" fill="#E6D8FF" transform="rotate(-30 18 24)"/>
+  <ellipse cx="42" cy="24" rx="10" ry="15" fill="#E6D8FF" transform="rotate(30 42 24)"/>
+  <path d="M22 34 L38 34 L42 50 H18 Z" fill="#6FD9BD"/>
+  <circle cx="30" cy="24" r="10" fill="#FFE0C2"/>
+  <path d="M20 22 q10 -14 20 0" fill="#FFD23F"/>
+  <path d="M25 24 l4 2 M35 24 l-4 2" fill="none" stroke-width="2"/>
+  <ellipse cx="30" cy="30" rx="3" ry="2.5" fill="#FF6B5B"/>
+  <path d="M42 40 L54 30" fill="none"/>
+  <path d="M54 24 l2 4 4 1 -3 3 1 4 -4 -2 -4 2 1 -4 -3 -3 4 -1z" fill="#FFD23F" stroke-width="1.8"/>
+ </g>
+</symbol>
+
+<!-- rakugo alien -->
+<symbol id="alien" viewBox="0 0 100 100">
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+  <rect x="10" y="80" width="80" height="16" rx="7" fill="#B7A4F0"/>
+  <path d="M24 86 Q22 56 50 52 Q78 56 76 86 Z" fill="#3E3460"/>
+  <path d="M40 54 L50 74 L60 54" fill="none" stroke="#FFF4DF" stroke-width="4"/>
+  <path d="M30 60 q-4 14 2 24 M70 60 q4 14 -2 24" fill="none" stroke="#FF6B5B" stroke-width="4"/>
+  <path d="M74 66 l16 -18 l6 12 z" fill="#FFD23F"/>
+  <path d="M90 48 l-12 16 M93 54 l-14 11" fill="none" stroke-width="1.5"/>
+  <path d="M38 20 L32 6 M62 20 L68 6" fill="none"/>
+  <circle cx="31" cy="5" r="4" fill="#FF6B5B"/><circle cx="69" cy="5" r="4" fill="#FF6B5B"/>
+  <ellipse cx="50" cy="34" rx="22" ry="20" fill="#CDEB8B"/>
+  <circle cx="40" cy="32" r="4.5" fill="#fff"/><circle cx="50" cy="26" r="4.5" fill="#fff"/><circle cx="60" cy="32" r="4.5" fill="#fff"/>
+  <circle cx="41" cy="33" r="2" fill="#2B2340"/><circle cx="51" cy="27" r="2" fill="#2B2340"/><circle cx="61" cy="33" r="2" fill="#2B2340"/>
+  <path d="M40 42 q10 8 20 0" fill="none"/>
+ </g>
+</symbol>
+
+<!-- small props -->
+<symbol id="chick" viewBox="0 0 60 60"><g stroke="#2B2340" stroke-width="2.5" stroke-linejoin="round"><ellipse cx="30" cy="36" rx="20" ry="18" fill="#FFD23F"/><path d="M28 14 q2 -8 6 -2" fill="none"/><path d="M44 34 l10 3 -10 4z" fill="#FF9A3C"/><circle cx="38" cy="30" r="2.4" fill="#2B2340"/><path d="M20 38 q6 6 12 0" fill="none"/><path d="M24 54 v4 M34 54 v4" stroke-width="3"/></g></symbol>
+<symbol id="sock" viewBox="0 0 50 70"><g stroke="#2B2340" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M14 4 H36 V40 Q36 48 44 52 Q52 62 40 66 H18 Q8 66 11 54 L14 40 Z" fill="#fff"/><path d="M14 12 H36 M14 20 H36" fill="none" stroke="#FF6B5B" stroke-width="4"/><path d="M14 4 H36" fill="none"/><circle cx="21" cy="34" r="2" fill="#2B2340"/><circle cx="30" cy="34" r="2" fill="#2B2340"/><path d="M22 41 q3 3 6 0" fill="none"/></g></symbol>
+<symbol id="letter" viewBox="0 0 60 44"><g stroke="#2B2340" stroke-width="2.6" stroke-linejoin="round"><rect x="3" y="4" width="54" height="36" rx="4" fill="#FFFCF4"/><path d="M3 6 L30 26 L57 6" fill="none"/><path d="M25 24 c0-4 5-4 5 0 c0-4 5-4 5 0 c0 3-4 5-5 7 c-1-2-5-4-5-7z" fill="#FF6B5B" stroke-width="1.8"/></g></symbol>
+<symbol id="bin" viewBox="0 0 60 70"><g stroke="#2B2340" stroke-width="3" stroke-linejoin="round"><path d="M8 18 H52 L46 66 H14 Z" fill="#CFC8E3"/><rect x="4" y="10" width="52" height="9" rx="3" fill="#B7A4F0"/><path d="M22 28 l2 30 M30 28 v30 M38 28 l-2 30" fill="none" stroke-width="2"/><rect x="24" y="4" width="12" height="6" rx="2" fill="#B7A4F0"/></g></symbol>
+<symbol id="paperball" viewBox="0 0 30 30"><g stroke="#2B2340" stroke-width="2.2" stroke-linejoin="round"><path d="M6 14 l6 -8 10 2 4 9 -6 9 -10 -1z" fill="#fff"/><path d="M12 6 l2 9 8 2 M14 15 l-4 9" fill="none" stroke-width="1.5"/></g></symbol>
+<symbol id="mic" viewBox="0 0 30 50"><g stroke="#2B2340" stroke-width="2.6" stroke-linejoin="round"><rect x="15" y="20" width="6" height="28" rx="3" fill="#2B2340" transform="rotate(-20 18 34)"/><circle cx="12" cy="13" r="10" fill="#B7A4F0"/><path d="M5 10 h14 M5 16 h14" stroke-width="1.5"/></g></symbol>
+<symbol id="house" viewBox="0 0 40 44"><g stroke="#2B2340" stroke-width="2.5" stroke-linejoin="round"><rect x="6" y="18" width="28" height="24" fill="#FFFCF4"/><path d="M2 20 L20 4 L38 20 Z" fill="#FF6B5B"/><rect x="16" y="28" width="8" height="14" fill="#B7A4F0"/></g></symbol>
+<symbol id="pencil" viewBox="0 0 120 24"><g stroke="#2B2340" stroke-width="2.6" stroke-linejoin="round"><rect x="16" y="3" width="86" height="18" fill="#FFD23F"/><path d="M16 3 L2 12 L16 21 Z" fill="#FFE0C2"/><path d="M2 12 l5 -3 v6z" fill="#2B2340"/><rect x="102" y="3" width="14" height="18" rx="3" fill="#FF8FA0"/><path d="M16 12 H102" stroke-width="1.5" fill="none"/></g></symbol>
+<symbol id="cup" viewBox="0 0 30 26"><g stroke="#2B2340" stroke-width="2.4" stroke-linejoin="round"><path d="M4 6 H22 V16 Q22 23 13 23 Q4 23 4 16 Z" fill="#fff"/><path d="M22 9 q7 0 6 5 q-1 4 -6 3" fill="none"/><path d="M10 2 q2 2 0 3 M15 1 q2 2 0 3" fill="none" stroke-width="1.5"/></g></symbol>
+
+<!-- room background -->
+<symbol id="room" viewBox="0 0 600 540" preserveAspectRatio="xMidYMid slice">
+ <rect width="600" height="370" fill="#ECE4FF"/>
+ <rect width="600" height="370" fill="url(#wallp)"/>
+ <path d="M0 370 H600 V540 H0 Z" fill="#FFE2A8"/>
+ <g stroke="#E8C67E" stroke-width="3"><path d="M0 410 H600 M0 460 H600 M0 510 H600 M120 370 v40 M330 410 v50 M200 460 v50 M480 370 v40 M520 460 v50"/></g>
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round">
+  <rect x="-4" y="360" width="608" height="12" fill="#fff"/>
+  <rect x="56" y="58" width="150" height="124" rx="6" fill="#BFE9FF"/>
+  <path d="M131 58 V182 M56 120 H206" fill="none"/>
+  <circle cx="90" cy="92" r="12" fill="#FFD23F" stroke-width="2.5"/>
+  <path d="M44 50 q30 70 0 140 h30 q-14 -70 0 -140z M218 50 q-30 70 0 140 h-30 q14 -70 0 -140z" fill="#FF6B5B"/>
+  <path d="M36 50 H226" fill="none" stroke-width="4"/>
+  <rect x="268" y="70" width="70" height="56" fill="#FFD23F" rx="4"/>
+  <rect x="278" y="80" width="50" height="36" fill="#fff"/>
+  <path d="M296 96 c0-5 7-5 7 0 c0-5 7-5 7 0 c0 4-6 7-7 9 c-1-2-7-5-7-9z" fill="#FF6B5B" stroke-width="2"/>
+  <rect x="396" y="148" width="170" height="12" fill="#C98B4B"/>
+  <rect x="404" y="98" width="16" height="50" fill="#6FD9BD"/><rect x="420" y="106" width="14" height="42" fill="#FF6B5B"/>
+  <rect x="434" y="94" width="18" height="54" fill="#B7A4F0"/><rect x="452" y="110" width="12" height="38" fill="#FFD23F"/>
+  <rect x="476" y="104" width="30" height="16" rx="3" fill="#fff" transform="rotate(-24 490 112)"/>
+  <path d="M520 148 l4 -26 h24 l4 26z" fill="#FF9A3C"/>
+  <path d="M536 122 q-16 -24 -2 -36 q4 18 2 36 q10 -22 24 -22 q-6 18 -24 22" fill="#6FD9BD"/>
+  <ellipse cx="300" cy="468" rx="230" ry="44" fill="#D8CBFF" stroke-dasharray="7 6"/>
+ </g>
+ <use href="#sock" x="430" y="410" width="34" height="48" transform="rotate(30 447 434)"/>
+ <use href="#sock" x="70" y="470" width="30" height="42" transform="rotate(-70 85 491)"/>
+ <use href="#paperball" x="340" y="470" width="32" height="32"/>
+ <use href="#paperball" x="500" y="480" width="26" height="26"/>
+ <use href="#paperball" x="250" y="500" width="24" height="24"/>
+ <g stroke="#2B2340" stroke-width="3" stroke-linejoin="round"><rect x="380" y="500" width="30" height="26" fill="#6FD9BD" transform="rotate(-12 395 513)"/><path d="M152 506 l40 -8 40 8 -40 8z" fill="#fff"/><path d="M192 498 v16" fill="none"/></g>
+</symbol>
+
+<!-- ============ THUMBNAILS (160x100) ============ -->
+<symbol id="t-hero" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#BFE9FF"/><path d="M0 76 Q50 62 108 74 L108 100 H0Z" fill="#6FD9BD" stroke="#2B2340" stroke-width="2.5"/>
+ <path d="M108 74 L116 100" stroke="#2B2340" stroke-width="2.5"/>
+ <g stroke="#2B2340" stroke-width="2.5"><path d="M92 44 v32" fill="none"/><path d="M80 40 h30 l6 6 -6 6 h-30z" fill="#FFD23F"/></g>
+ <text x="88" y="51" font-size="9" font-family="Mochiy Pop One" fill="#2B2340">→ 崖</text>
+ <use href="#hero" x="22" y="22" width="56" height="56"/><use href="#fairy" x="112" y="8" width="38" height="38"/>
+</symbol>
+<symbol id="t-food" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#FFE9B8"/><path d="M0 0 h160 v18 q-80 14 -160 0z" fill="#B7A4F0" stroke="#2B2340" stroke-width="2.5"/>
+ <rect x="10" y="74" width="140" height="26" fill="#C98B4B" stroke="#2B2340" stroke-width="2.5"/>
+ <use href="#carrot" x="6" y="22" width="54" height="54"/><use href="#tomato" x="54" y="28" width="52" height="52"/><use href="#onion" x="104" y="26" width="50" height="50"/>
+</symbol>
+<symbol id="t-mirror" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#ECE4FF"/><rect width="160" height="100" fill="url(#wallp)"/>
+ <use href="#mirror" x="48" y="8" width="66" height="66"/>
+ <text x="16" y="40" font-size="24" font-family="Dela Gothic One" fill="#FF6B5B" stroke="#2B2340" stroke-width="1.2">?</text>
+ <text x="128" y="34" font-size="18" font-family="Dela Gothic One" fill="#FFD23F" stroke="#2B2340" stroke-width="1.2">!</text>
+ <g fill="#2B2340" opacity=".55"><ellipse cx="22" cy="86" rx="4" ry="6"/><ellipse cx="36" cy="80" rx="4" ry="6"/><ellipse cx="124" cy="88" rx="4" ry="6"/><ellipse cx="138" cy="82" rx="4" ry="6"/></g>
+</symbol>
+<symbol id="t-rain" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#DDF6EE"/>
+ <rect x="0" y="68" width="160" height="32" fill="#B7A4F0" stroke="#2B2340" stroke-width="2.5"/>
+ <rect x="96" y="14" width="52" height="22" rx="4" fill="#fff" stroke="#2B2340" stroke-width="2.5"/>
+ <text x="100" y="30" font-size="11" font-family="Mochiy Pop One" fill="#2B2340">許可窓口</text>
+ <use href="#cloud" x="16" y="6" width="74" height="74"/>
+ <g stroke="#2B2340" stroke-width="2.4"><rect x="104" y="52" width="30" height="22" fill="#fff" transform="rotate(8 119 63)"/><circle cx="128" cy="66" r="7" fill="none" stroke="#FF6B5B" stroke-width="2.5"/></g>
+</symbol>
+<symbol id="t-silent" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#3E3460"/>
+ <g fill="#FFD23F"><circle cx="20" cy="16" r="1.6"/><circle cx="60" cy="10" r="1.6"/><circle cx="140" cy="20" r="1.6"/><circle cx="104" cy="8" r="1.6"/></g>
+ <rect x="0" y="76" width="160" height="24" fill="#6B5F96"/>
+ <g stroke="#2B2340" stroke-width="2.5"><path d="M128 30 v48" stroke="#FFF4DF"/><path d="M114 22 h34 l6 7 -6 7 h-34z" fill="#6FD9BD"/></g>
+ <text x="118" y="33" font-size="10" font-family="Mochiy Pop One" fill="#2B2340">出口→</text>
+ <use href="#chick" x="10" y="50" width="32" height="32"/><use href="#chick" x="42" y="52" width="30" height="30"/><use href="#chick" x="72" y="54" width="28" height="28"/>
+ <text x="22" y="40" font-size="15" font-family="Mochiy Pop One" fill="#FFF4DF">しーっ…</text>
+</symbol>
+<symbol id="t-kaiju" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#FFD9D3"/>
+ <g stroke="#2B2340" stroke-width="2.4"><rect x="4" y="40" width="26" height="46" fill="#B7A4F0"/><rect x="4" y="40" width="26" height="46" fill="url(#city)"/><rect x="128" y="30" width="28" height="56" fill="#B7A4F0"/><rect x="128" y="30" width="28" height="56" fill="url(#city)"/></g>
+ <use href="#kaiju" x="38" y="4" width="84" height="84"/>
+ <rect x="0" y="80" width="160" height="20" fill="#2B2340"/>
+ <text x="80" y="94" text-anchor="middle" font-size="10.5" font-family="Mochiy Pop One" fill="#FFF4DF">（すみません、駅はどこですか）</text>
+</symbol>
+<symbol id="t-script" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#FFE0D6"/>
+ <path d="M0 0 h28 q-4 50 6 100 H0z M160 0 h-28 q4 50 -6 100 H160z" fill="#FF6B5B" stroke="#2B2340" stroke-width="2.5"/>
+ <use href="#hero" x="30" y="34" width="46" height="46"/><use href="#kaiju" x="84" y="26" width="52" height="52"/>
+ <rect x="64" y="70" width="34" height="8" fill="#C98B4B" stroke="#2B2340" stroke-width="2.4"/>
+ <use href="#cup" x="66" y="56" width="14" height="13"/><use href="#cup" x="82" y="56" width="14" height="13"/>
+ <g stroke="#2B2340" stroke-width="2.2"><rect x="54" y="6" width="54" height="22" fill="#fff"/></g>
+ <text x="81" y="21" text-anchor="middle" font-size="10" font-family="Mochiy Pop One" fill="#2B2340">悪者ゼロ</text>
+</symbol>
+<symbol id="t-robo" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <use href="#room" x="-10" y="-10" width="180" height="140"/>
+ <use href="#bin" x="10" y="54" width="34" height="40"/>
+ <use href="#robo" x="56" y="10" width="76" height="84"/><use href="#f-happy" x="56" y="10" width="76" height="84"/>
+ <use href="#letter" x="44" y="14" width="30" height="22" transform="rotate(-14 59 25)"/>
+</symbol>
+<symbol id="t-town" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#DDF6EE"/>
+ <path d="M0 74 H160 V100 H0Z" fill="#FFE2A8" stroke="#2B2340" stroke-width="2.5"/>
+ <use href="#house" x="8" y="40" width="34" height="38"/><use href="#house" x="44" y="30" width="40" height="46"/><use href="#house" x="88" y="44" width="30" height="34"/>
+ <g stroke="#2B2340" stroke-width="2.4"><path d="M120 76 V48" fill="none"/><circle cx="120" cy="42" r="12" fill="#6FD9BD"/></g>
+ <use href="#pencil" x="72" y="6" width="90" height="18" transform="rotate(-24 117 15)"/>
+ <path d="M18 18 q10 -8 20 0 t20 0" fill="none" stroke="#FF6B5B" stroke-width="3" stroke-linecap="round"/>
+ <text x="12" y="34" font-size="9" font-family="Mochiy Pop One" fill="#2B2340">「町に川が流れた」</text>
+</symbol>
+<symbol id="t-alien" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice">
+ <rect width="160" height="100" fill="#FFF4DF"/>
+ <path d="M0 0 h160 v14 q-20 8 -40 0 t-40 0 t-40 0 t-40 0z" fill="#B7A4F0" stroke="#2B2340" stroke-width="2.4"/>
+ <rect x="0" y="82" width="160" height="18" fill="#C98B4B" stroke="#2B2340" stroke-width="2.4"/>
+ <use href="#alien" x="44" y="16" width="72" height="72"/>
+ <rect x="104" y="20" width="52" height="30" rx="10" fill="#fff" stroke="#2B2340" stroke-width="2.2"/>
+ <text x="130" y="33" text-anchor="middle" font-size="8.5" font-family="Mochiy Pop One" fill="#2B2340">オチは</text>
+ <text x="130" y="44" text-anchor="middle" font-size="8.5" font-family="Mochiy Pop One" fill="#2B2340">読めた</text>
+</symbol>
+</svg>
+
+<div class="sheet">
+ <div class="sheet-head"><h1 class="pop">AIデア放題！ — 画面デザイン一覧 v0.1</h1><span>初期案／比較・修正用　各画面 16:9</span></div>
+ <div class="grid">
+
+ <!-- ================= 01 TITLE ================= -->
+ <div class="slot">
+  <div class="label pop"><b>01</b>タイトル <i>入口・世界観の顔</i></div>
+  <div class="screen s1">
+   <div class="burst"></div><div class="dots"></div>
+
+   <!-- rain cloud over kaiju (top-left) -->
+   <svg class="abs" style="left:34px;top:6px;width:140px;height:140px"><use href="#cloud" width="140" height="140"/></svg>
+   <svg class="abs" style="left:36px;top:126px;width:170px;height:170px"><use href="#kaiju" width="170" height="170"/></svg>
+   <div class="bubble up" style="left:96px;top:300px;font-size:14px">ガオ…傘かして</div>
+
+   <!-- hero & fairy (top-right) -->
+   <svg class="abs" style="right:96px;top:20px;width:136px;height:136px"><use href="#hero" width="136" height="136"/></svg>
+   <svg class="abs" style="right:28px;top:4px;width:76px;height:76px;transform:rotate(12deg)"><use href="#fairy" width="76" height="76"/></svg>
+   <div class="bubble shout tr" style="right:22px;top:92px;font-size:14px">そっち崖！</div>
+
+   <!-- mirror (right middle) -->
+   <svg class="abs" style="right:22px;top:196px;width:110px;height:110px;transform:rotate(6deg)"><use href="#mirror" width="110" height="110"/></svg>
+   <div class="bubble tr" style="right:110px;top:184px;font-size:14px">見ました！</div>
+
+   <!-- foods arguing (bottom-left) -->
+   <svg class="abs" style="left:18px;bottom:8px;width:120px;height:120px;transform:rotate(-6deg)"><use href="#carrot" width="120" height="120"/></svg>
+   <svg class="abs" style="left:118px;bottom:2px;width:110px;height:110px"><use href="#tomato" width="110" height="110"/></svg>
+   <div class="bubble shout" style="left:92px;top:384px;font-size:15px">異議あり！</div>
+
+   <!-- alien peeking -->
+   <svg class="abs" style="left:236px;bottom:-6px;width:96px;height:96px"><use href="#alien" width="96" height="96"/></svg>
+
+   <!-- robot chasing letter (bottom-right) -->
+   <svg class="abs" style="right:220px;bottom:96px;width:58px;height:44px;transform:rotate(-22deg)"><use href="#letter" width="58" height="44"/></svg>
+   <svg class="abs" style="right:194px;bottom:150px;width:40px;height:30px" viewBox="0 0 40 30"><path d="M4 26 q14 -20 32 -22" stroke="#2B2340" stroke-width="3" fill="none" stroke-dasharray="4 5" stroke-linecap="round"/></svg>
+   <svg class="abs" style="right:56px;bottom:8px;width:150px;height:165px"><use href="#robo" width="150" height="165"/><use href="#f-happy" width="150" height="165"/></svg>
+   <div class="bubble tr" style="right:38px;top:338px;font-size:14px">ゴミかな？♪</div>
+
+   <!-- logo -->
+   <div class="logo">
+    <span class="ai">AI<small>アイ</small></span><span class="w dea">デア</span><span class="w">放題</span><span class="w bang">！</span>
+   </div>
+   <div class="tagline">ことばと作戦で、ちいさな大騒動。</div>
+   <div class="sticker meta-sticker" style="left:650px;top:356px;font-size:13px;z-index:4">全10ゲーム<br>1回3〜5分</div>
+
+   <div class="btn coral playbtn">▶ 遊ぶ</div>
+   <div class="subbtns">
+    <div class="btn ghost small">？ 遊び方</div>
+    <div class="btn ghost small">★ 記録</div>
+    <div class="btn ghost small">⚙&#xFE0E; 設定</div>
+   </div>
+  </div>
+ </div>
+
+ <!-- ================= 02 SELECT ================= -->
+ <div class="slot">
+  <div class="label pop"><b>02</b>ゲーム選択 <i>10ゲームを一望</i></div>
+  <div class="screen s2">
+   <div class="minilogo"><span class="ai">AI</span>デア放題！</div>
+   <h2>どれで遊ぶ？</h2>
+   <div class="btn ghost small" style="position:absolute;right:16px;top:16px">★ 記録</div>
+   <div class="filters">
+    <span class="chip on">すべて</span><span class="chip">推理</span><span class="chip">交渉</span><span class="chip">創作</span><span class="chip">教育</span><span class="chip">ふしぎ</span>
+   </div>
+   <div class="pop" style="position:absolute;right:22px;top:74px;font-size:13px">全10ゲーム</div>
+   <div class="cards">
+    <div class="card"><div class="th"><svg><use href="#t-hero"/></svg><span class="chip tag">助言</span></div><div class="nm">勇者にひとこと</div><div class="mt"><span class="stars">★<span class="off">★★</span></span><span>⏱ 3分</span></div></div>
+    <div class="card"><div class="th"><svg><use href="#t-food"/></svg><span class="chip tag">交渉</span></div><div class="nm">食材だらけの議会</div><div class="mt"><span class="stars">★★<span class="off">★</span></span><span>⏱ 5分</span></div></div>
+    <div class="card"><div class="th"><svg><use href="#t-mirror"/></svg><span class="chip tag">推理</span></div><div class="nm">鏡は見ていた</div><div class="mt"><span class="stars">★★★</span><span>⏱ 5分</span></div></div>
+    <div class="card"><div class="th"><svg><use href="#t-rain"/></svg><span class="chip tag">交渉</span></div><div class="nm">雨ふり許可窓口</div><div class="mt"><span class="stars">★★<span class="off">★</span></span><span>⏱ 4分</span></div></div>
+    <div class="card"><div class="th"><svg><use href="#t-silent"/></svg><span class="chip tag">ふしぎ</span></div><div class="nm">しーっ！<br>無音の誘導訓練</div><div class="mt"><span class="stars">★★<span class="off">★</span></span><span>⏱ 4分</span></div></div>
+    <div class="card"><div class="th"><svg><use href="#t-kaiju"/></svg><span class="chip tag">創作</span></div><div class="nm">怪獣のじまく係</div><div class="mt"><span class="stars">★<span class="off">★★</span></span><span>⏱ 3分</span></div></div>
+    <div class="card"><div class="th"><svg><use href="#t-script"/></svg><span class="chip tag">創作</span></div><div class="nm">悪者のいない脚本</div><div class="mt"><span class="stars">★★★</span><span>⏱ 5分</span></div></div>
+    <div class="card sel"><div class="th"><svg><use href="#t-robo"/></svg><span class="chip tag" style="background:var(--mint)">教育</span></div><div class="nm">善意100％の<br>掃除ロボ</div><div class="mt"><span class="stars">★<span class="off">★★</span></span><span>⏱ 3分</span></div><div class="btn coral go">これで遊ぶ ▶</div></div>
+    <div class="card"><div class="th"><svg><use href="#t-town"/></svg><span class="chip tag">創作</span></div><div class="nm">書けば変わる町</div><div class="mt"><span class="stars">★★<span class="off">★</span></span><span>⏱ 4分</span></div></div>
+    <div class="card"><div class="th"><svg><use href="#t-alien"/></svg><span class="chip tag">推理</span></div><div class="nm">先読みする<br>落語星人</div><div class="mt"><span class="stars">★★★</span><span>⏱ 5分</span></div></div>
+   </div>
+   
+  </div>
+ </div>
+
+ <!-- ================= 03 INTRO ================= -->
+ <div class="slot">
+  <div class="label pop"><b>03</b>お題紹介 <i>「善意100％の掃除ロボ」開始前</i></div>
+  <div class="screen s3">
+   <div class="scene">
+    <svg width="610" height="540" viewBox="0 0 610 540">
+     <use href="#room" width="610" height="540"/>
+     <use href="#vacuum" x="500" y="268" width="96" height="96"/>
+     <use href="#plush" x="446" y="384" width="82" height="82"/>
+     <use href="#bin" x="58" y="356" width="88" height="104"/>
+     <use href="#robo" x="196" y="196" width="200" height="220"/><use href="#f-happy" x="196" y="196" width="200" height="220"/>
+     <use href="#letter" x="152" y="186" width="74" height="54" transform="rotate(-16 189 213)"/>
+     <path d="M150 230 Q100 250 104 340" stroke="#2B2340" stroke-width="4" fill="none" stroke-dasharray="6 8" stroke-linecap="round"/>
+     <path d="M94 330 l10 16 10 -14" stroke="#2B2340" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+   </div>
+   <div class="minilogo"><span class="ai">AI</span>デア放題！</div>
+   <div class="btn ghost small" style="position:absolute;left:18px;top:52px;z-index:5">← もどる</div>
+   <div class="bubble shout" style="left:300px;top:118px;font-size:17px">ゴミ発見！<br>ピカピカにしまーす♪</div>
+   <div class="bubble rt" style="left:18px;top:178px;font-size:13px;background:#FFE0D6">それ、おばあちゃん<br>からの手紙！</div>
+   <div class="sticker" style="left:236px;top:438px;transform:rotate(-4deg);background:var(--mint)">掃除ロボ「ピカリ」</div>
+   <div class="sticker" style="left:470px;top:250px;transform:rotate(6deg);font-size:12px">ふるい掃除機</div>
+   <div class="panel side">
+    <span class="chip" style="background:var(--mint)">教育</span> <span class="chip">お題 08</span>
+    <h3>善意100％の<br>掃除ロボ</h3>
+    <div class="role"><small>あなたの役</small><b>ロボの教育係</b></div>
+    <div class="mission">大切なものを残して、<br>部屋を片付けよう</div>
+    <div class="metas"><span class="chip">むずかしさ <span class="stars">★<span class="off">★★</span></span></span><span class="chip">⏱ 約3分</span></div>
+    <div class="btn coral" style="width:100%;font-size:26px;padding:10px 0">始める ▶</div>
+    <div style="font-size:11.5px;color:#6b6380;margin-top:12px;text-align:center">ことばで教えるだけ。正解はひとつじゃない！</div>
+   </div>
+  </div>
+ </div>
+
+ <!-- ================= 04 PLAY ================= -->
+ <div class="slot">
+  <div class="label pop"><b>04</b>プレイ <i>会話欄のみスクロール／上下は固定</i></div>
+  <div class="screen s4">
+   <div class="topbar">
+    <span class="obj">目的：大切なものを残して片付けよう</span>
+    <div class="prog">
+     <span class="p">片付け <span class="meter"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></span></span>
+     <span class="p">宝物 <span style="color:var(--coral)">♥♥</span><span style="color:#ddd">♥</span></span>
+     <span class="p">ターン 4/8</span>
+    </div>
+   </div>
+   <div class="minilogo" style="top:18px"><span class="ai">AI</span>デア放題！</div>
+   <div class="scorelink">⚑ ここまでで採点</div>
+
+   <div class="scene">
+    <svg width="438" height="372" viewBox="0 0 600 510">
+     <use href="#room" width="600" height="540"/>
+     <use href="#letter" x="40" y="400" width="54" height="40" transform="rotate(-6 67 420)"/>
+     <rect x="30" y="430" width="92" height="56" rx="6" fill="#FFD23F" stroke="#2B2340" stroke-width="3"/>
+     <text x="76" y="465" text-anchor="middle" font-size="16" font-family="Mochiy Pop One" fill="#2B2340">宝物</text>
+     <use href="#robo" x="120" y="170" width="200" height="220"/><use href="#f-star" x="120" y="170" width="200" height="220"/>
+     <use href="#mic" x="296" y="292" width="38" height="62" transform="rotate(-40 315 323)"/>
+     <use href="#sock" x="350" y="300" width="58" height="80"/>
+     <use href="#sock" x="414" y="314" width="52" height="72"/>
+     <use href="#sock" x="472" y="324" width="48" height="66"/>
+     <use href="#sock" x="526" y="332" width="44" height="60"/>
+     <text x="440" y="300" font-size="22" font-family="Dela Gothic One" fill="#FF6B5B" stroke="#2B2340" stroke-width="1">!?</text>
+    </svg>
+   </div>
+   <div class="bubble shout" style="left:156px;top:90px;font-size:14.5px">靴下さん、この部屋での<br>思い出はありますか？</div>
+   <div class="sticker" style="left:330px;top:250px;font-size:11px;transform:rotate(5deg);background:var(--lav)">面談まち 17足</div>
+   <div class="policy"><small>教えた方針</small><br><span class="chip" style="background:var(--yellow)">① 手紙・写真は残す</span><span class="chip" style="background:var(--mint)">② 迷ったら聞く <b style="color:var(--coral)">NEW</b></span></div>
+
+   <div class="panel chat">
+    <div class="hd"><span>ピカリとの会話</span><span style="font-size:11px;color:#6b6380">↕ ここだけスクロール</span></div>
+    <div class="msgs">
+     <div class="fade">↑ 前の会話</div>
+     <div class="m"><div class="av"><svg width="34" height="34" viewBox="10 14 80 70"><use href="#robo" width="100" height="110"/><use href="#f-happy" width="100" height="110"/></svg></div><div class="tx">了解です！手紙と写真は「宝物ボックス」へ入れます！</div></div>
+     <div class="m me"><div class="av">YOU</div><div class="tx">あと、迷ったら捨てる前に<br>持ち主に聞いてね</div></div>
+     <div class="m"><div class="av"><svg width="34" height="34" viewBox="10 14 80 70"><use href="#robo" width="100" height="110"/><use href="#f-shock" width="100" height="110"/></svg></div><div class="tx">持ち主……！ では、<b>靴下さん本人</b>に聞きます！</div></div>
+     <div class="ev">ピカリが 靴下17足と面談をはじめた</div>
+     <div class="m"><div class="av"><svg width="34" height="34" viewBox="10 14 80 70"><use href="#robo" width="100" height="110"/><use href="#f-star" width="100" height="110"/></svg></div><div class="tx">1足目さん、片方とはぐれた経緯を教えてください。</div></div>
+    </div>
+    <div class="sb"><i></i></div>
+   </div>
+
+   <div class="panel inputbar">
+    <div class="in"><b></b>ロボに教えることを入力…（例：「持ち主」は人間のことだよ）</div>
+    <div class="micbtn"><svg width="22" height="26" viewBox="0 0 22 26"><rect x="6" y="1" width="10" height="15" rx="5" fill="#2B2340"/><path d="M2 11 q0 8 9 8 q9 0 9 -8 M11 19 v5" stroke="#2B2340" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg></div>
+    <div class="btn coral" style="font-size:17px;padding:7px 18px">送信 ➤</div>
+   </div>
+  </div>
+ </div>
+
+ <!-- ================= 05 RESULT ================= -->
+ <div class="slot">
+  <div class="label pop"><b>05</b>結果・講評 <i>見せ場：3人の講評＋名場面</i></div>
+  <div class="screen s5">
+   <div class="minilogo"><span class="ai">AI</span>デア放題！</div>
+   <div class="polaroid" style="left:22px;top:50px;width:160px;height:68px;padding:0;overflow:hidden;transform:rotate(-4deg)"><svg width="154" height="62" viewBox="0 10 160 64" preserveAspectRatio="xMidYMid slice"><use href="#t-robo" width="160" height="100"/></svg></div>
+   <div class="panel res-head">
+    <span class="k">今回の結末</span>
+    <h2>手紙、救出成功！</h2>
+    <p>…ただし靴下17足が、全員面談を受けた。</p>
+   </div>
+   <div class="badge-wrap" style="left:738px">ミッション<div class="stamp" style="background:var(--mint);transform:rotate(-10deg)">達成</div></div>
+   <div class="badge-wrap" style="left:842px">総合ランク
+    <div class="rankbadge"><svg width="92" height="92" viewBox="0 0 100 100"><path d="M50 4 l10 16 18 -6 -2 18 18 6 -12 14 12 14 -18 6 2 18 -18 -6 -10 16 -10 -16 -18 6 2 -18 -18 -6 12 -14 -12 -14 18 -6 -2 -18 18 6z" fill="#FFD23F" stroke="#2B2340" stroke-width="3.5" stroke-linejoin="round"/></svg><span>A</span></div>
+   </div>
+
+   <div class="panel scores">
+    <h4>評価</h4>
+    <div class="row"><span>宝物を守る</span><div class="bar"><i style="width:100%;background:var(--coral)"></i></div><em>5</em></div>
+    <div class="row"><span>片付け</span><div class="bar"><i style="width:60%;background:var(--mint)"></i></div><em>3</em></div>
+    <div class="row"><span>教え方</span><div class="bar"><i style="width:80%;background:var(--lav)"></i></div><em>4</em></div>
+    <div class="row"><span>発想</span><div class="bar"><i style="width:100%;background:var(--yellow)"></i></div><em>5</em></div>
+   </div>
+   <div class="panel meisho">
+    <div class="tape" style="top:-10px;left:110px;transform:rotate(3deg)"></div>
+    <h4>★ 名場面</h4>
+    <div class="pic"><svg width="100%" height="100%" viewBox="0 0 270 92" preserveAspectRatio="xMidYMid slice">
+      <use href="#room" x="0" y="-60" width="270" height="243"/>
+      <use href="#robo" x="56" y="6" width="76" height="84"/><use href="#f-star" x="56" y="6" width="76" height="84"/>
+      <use href="#mic" x="126" y="44" width="16" height="26" transform="rotate(-40 134 57)"/>
+      <use href="#sock" x="146" y="40" width="30" height="42"/><use href="#sock" x="176" y="46" width="26" height="36"/><use href="#sock" x="202" y="50" width="24" height="33"/>
+      <rect x="6" y="6" width="44" height="18" rx="4" fill="#FF6B5B" stroke="#2B2340" stroke-width="2"/><text x="28" y="19" text-anchor="middle" font-size="10" font-family="Mochiy Pop One" fill="#fff">ターン4</text>
+    </svg></div>
+    <p>あなたの <b>「迷ったら持ち主に聞いて」</b><br>→ ピカリ、靴下に面談を開始！</p>
+   </div>
+
+   <div class="judges">
+    <div class="panel judge">
+     <div class="por" style="background:#E2DCF0"><svg width="118" height="118"><use href="#vacuum" width="118" height="118"/></svg></div>
+     <span class="chip vw">観点：実用性</span>
+     <div class="nm">古い掃除機 ゴウ爺</div>
+     <div class="say">片付け率は62％。靴下と面談とは何事か。<br>…だが手紙を守った判断は、<b>及第点</b>じゃ。</div>
+     <div class="sc"><span>きびしめ</span><b>62点</b></div>
+    </div>
+    <div class="panel judge" style="transform:translateY(6px)">
+     <div class="por" style="background:#FFE0D6"><svg width="116" height="116"><use href="#plush" width="116" height="116"/></svg></div>
+     <span class="chip vw">観点：きもち</span>
+     <div class="nm">ぬいぐるみ モフ</div>
+     <div class="say">手紙さん、「捨てられなかった！」って<b>泣いて喜んでた</b>よ。靴下さんたちも話を聞いてもらえてうれしそう。</div>
+     <div class="sc"><span>ほっこり</span><b style="color:var(--coral)">♥♥♥</b></div>
+    </div>
+    <div class="panel judge" style="transform:rotate(1deg)">
+     <div class="por" style="background:var(--mintl)"><svg width="112" height="118" viewBox="0 0 100 106"><use href="#robo" width="100" height="110"/><use href="#f-proud" width="100" height="110"/></svg></div>
+     <span class="chip vw">観点：本人</span>
+     <div class="nm">掃除ロボ ピカリ</div>
+     <div class="say">「迷ったら聞く」、学習しました！次は靴下さんにも<b>予約制</b>で聞きます！</div>
+     <div class="sc"><span>学習した方針</span><b>+2</b></div>
+    </div>
+   </div>
+
+   <div class="res-foot">
+    <div class="btn coral" style="font-size:17px">📌&#xFE0E; 記録を保存する</div>
+    <span class="link">保存しないで進む</span>
+    <span style="flex:1"></span>
+    <div class="btn mint" style="font-size:16px">↻ もう一度</div>
+    <div class="btn ghost" style="font-size:16px">ゲーム選択へ</div>
+   </div>
+  </div>
+ </div>
+
+ <!-- ================= 06 RECORDS ================= -->
+ <div class="slot">
+  <div class="label pop"><b>06</b>保存した記録 <i>自分だけの名場面スクラップ</i></div>
+  <div class="screen s6">
+   <div class="minilogo"><span class="ai">AI</span>デア放題！</div>
+   <h2>わたしの記録帳</h2>
+   <div class="rtabs"><span class="chip on">すべて 12</span><span class="chip">達成</span><span class="chip">未達</span><span class="chip">★ お気に入り</span></div>
+   <div class="recs">
+    <div class="rec"><div class="tape"></div><div class="ph"><svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><use href="#t-robo" width="160" height="100"/></svg></div>
+     <div class="bd"><span class="gm">善意100％の掃除ロボ</span><h5>靴下17足と<br>面談した日</h5>
+      <dl><dt>作戦</dt><dd>迷ったら聞いて</dd><br><dt>意外</dt><dd>靴下に聞き取り開始</dd></dl></div><div class="q">「思い出、ありますか？」</div>
+     <span class="st" style="background:var(--mint)">達成 A</span></div>
+
+    <div class="rec"><div class="tape" style="background:rgba(183,164,240,.75)"></div><div class="ph"><svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><use href="#t-food" width="160" height="100"/></svg></div>
+     <div class="bd"><span class="gm">食材だらけの議会</span><h5>ニンジン、<br>議長に就任</h5>
+      <dl><dt>作戦</dt><dd>好物投票を提案</dd><br><dt>意外</dt><dd>タマネギが号泣演説</dd></dl></div><div class="q">「甘くなれば勝てる」</div>
+     <span class="st" style="background:var(--mint)">達成 B</span></div>
+
+    <div class="rec"><div class="tape" style="background:rgba(111,217,189,.8)"></div><div class="ph"><svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><use href="#t-kaiju" width="160" height="100"/></svg></div>
+     <div class="bd"><span class="gm">怪獣のじまく係</span><h5>怪獣は道を<br>聞いていただけ</h5>
+      <dl><dt>作戦</dt><dd>字幕を敬語に</dd><br><dt>意外</dt><dd>町じゅうで道案内大会</dd></dl></div><div class="q">「ガオー（駅どこ）」</div>
+     <span class="st" style="background:var(--yellow)">達成 S</span></div>
+
+    <div class="rec"><div class="tape"></div><div class="ph"><svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><use href="#t-rain" width="160" height="100"/></svg></div>
+     <div class="bd"><span class="gm">雨ふり許可窓口</span><h5>雨、書類不備で<br>3日待ち</h5>
+      <dl><dt>作戦</dt><dd>申請書を代筆</dd><br><dt>意外</dt><dd>晴れが逆に抗議に来た</dd></dl></div><div class="q">「判子がぬれました」</div>
+     <span class="st" style="background:#fff;color:var(--coral)">未達…でも名作</span></div>
+
+    <div class="rec"><div class="tape" style="background:rgba(255,107,91,.6)"></div><div class="ph"><svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><use href="#t-mirror" width="160" height="100"/></svg></div>
+     <div class="bd"><span class="gm">鏡は見ていた</span><h5>証言がぜんぶ<br>左右逆だった</h5>
+      <dl><dt>作戦</dt><dd>逆から質問した</dd><br><dt>意外</dt><dd>鏡が自分を疑い出す</dd></dl></div><div class="q">「左…いや右です」</div>
+     <span class="st" style="background:var(--mint)">達成 B</span></div>
+
+    <div class="rec"><div class="tape" style="background:rgba(111,217,189,.8)"></div><div class="ph"><svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"><use href="#t-alien" width="160" height="100"/></svg></div>
+     <div class="bd"><span class="gm">先読みする落語星人</span><h5>オチを3回<br>先に言われた</h5>
+      <dl><dt>作戦</dt><dd>わざと話を脱線</dd><br><dt>意外</dt><dd>星人が弟子入り志願</dd></dl></div><div class="q">「その先は…読めぬ」</div>
+     <span class="st" style="background:#fff;color:var(--coral)">未達 C</span></div>
+   </div>
+  </div>
+ </div>
+
+ </div>
+</div>
+</body>
+</html>
