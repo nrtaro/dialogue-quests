@@ -5,7 +5,7 @@ import type { AnyContent, ContentDefinition, EffectContentDefinition, Message, P
 import { createProvider, parseProposal } from './ai';
 import { QuotaExhausted } from './quota';
 import { resolveEffectTurn } from './effect-turn';
-import { beatsToMessages, InputTooLong, resolveTrpgTurn } from './trpg-turn';
+import { beatsToMessages, InputTooLong, resolveTrpgTurn, type TurnMemo } from './trpg-turn';
 import { scoreNow as scoreTrpgNow } from '../game/trpg/engine';
 import type { Beat, TrpgState } from '../game/trpg/types';
 
@@ -19,6 +19,8 @@ type Session = {
   created: number; messages: Message[]; turns: TurnRecord[]; model: string;
   requests: Map<string, { input: string; view: SessionView }>;
   pending?: { id: string } & Pending;
+  /** The current turn's rolled die (and plan), kept across failed tries until the turn is committed. */
+  memo?: { revision: number; data: TurnMemo };
 };
 const viewOf = (c: AnyContent, state: unknown): PublicState => (c.view as (s: unknown) => PublicState)(state);
 
@@ -98,8 +100,10 @@ export class SessionStore {
         const state = scoreTrpgNow(c.scenario, s.state as TrpgState);
         return { ai: { proposal: null, model: s.model }, state, speech: 'えっ、ここで終わり？', action: 'trpg:score-now', result: 'ここで冒険を区切った。', elapsed: 0, notes: [] as Message[] };
       }
+      // A die once shown stays the die of this turn, even if the story call fails and the player retries.
+      if (s.memo?.revision !== s.revision) s.memo = { revision: s.revision, data: {} };
       let out;
-      try { out = await resolveTrpgTurn(c.scenario, this.provider, s.state as TrpgState, s.messages, message, undefined, onPreview); }
+      try { out = await resolveTrpgTurn(c.scenario, this.provider, s.state as TrpgState, s.messages, message, undefined, onPreview, s.memo.data); }
       catch (e) { if (e instanceof InputTooLong) throw new GameError(e.message, 400); throw e; }
       const usage = out.calls.reduce<{ input: number; output: number } | undefined>((sum, r) => r.usage ? { input: (sum?.input ?? 0) + r.usage.input, output: (sum?.output ?? 0) + r.usage.output } : sum, undefined);
       const ai = { proposal: null, model: out.calls[0]?.model ?? s.model, ...(usage ? { usage } : {}) };
@@ -122,7 +126,7 @@ export class SessionStore {
     const after = viewOf(s.content, r.state);
     const record: TurnRecord = { requestId: input.requestId, revision: s.revision + 1, player: input.message, speech: r.speech, action: r.action, before, after: structuredClone(after), elapsed: r.elapsed, result: r.result, model: r.ai.model, ...(r.ai.usage ? { usage: r.ai.usage } : {}), responseMs: Date.now() - started, timestamp: new Date().toISOString() };
     // All fallible external work and validation finish before committing any state.
-    s.state = r.state; s.revision++; s.model = r.ai.model;
+    s.state = r.state; s.revision++; s.model = r.ai.model; s.memo = undefined;
     s.turns.push(record);
     s.messages.push({ role: 'player', text: input.message }, { role: 'character', text: r.speech }, { role: 'result', text: r.result }, ...r.notes);
     if (after.ending) s.messages.push({ role: 'narrator', text: after.ending.reason });

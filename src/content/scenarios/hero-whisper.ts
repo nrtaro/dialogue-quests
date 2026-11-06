@@ -21,9 +21,10 @@ export const heroWhisperScenario: ScenarioDefinition = {
     heroLine: { text: '妖精さん、どうしよう？ 何でも言ってみて！', emotion: 'thinking' },
   },
   goals: [
-    { id: 'get-herb', label: '月白草を手に入れる', place: 'shrine' },
+    // The barrier guards the herb; the beasts are in the way at the gate (they make actions there harder).
+    { id: 'get-herb', label: '月白草を手に入れる', place: 'shrine', blockedBy: ['barrier'], gives: '月白草' },
     { id: 'return-village', label: '村に帰り着く', requires: ['get-herb'], at: 'village', arrive: true },
-    { id: 'deliver', label: '薬師に月白草を渡す', requires: ['return-village'], at: 'village' },
+    { id: 'deliver', label: '薬師に月白草を渡す', requires: ['return-village'], at: 'village', needs: '月白草' },
   ],
   clock: {
     name: '日没までの時間',

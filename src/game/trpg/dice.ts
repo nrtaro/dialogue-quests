@@ -37,6 +37,26 @@ export function normalizeBands(raw: unknown): { bands: Band[]; repaired: boolean
   return { bands, repaired };
 }
 
+/** Most the rules move the odds in one turn, either way (in faces of the d20). */
+export const MAX_SHIFT = 5;
+/**
+ * Move the bands by `shift` faces: + makes every tier start lower (easier), − higher (harder).
+ * The usual shape rules still hold afterwards (1 is setback, 20 is great, success-or-better ≤ 18 faces).
+ */
+export function shiftBands(bands: Band[], shift: number): Band[] {
+  const d = Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, Math.round(shift)));
+  if (!d) return bands;
+  // A tier with no faces starts where the next one does.
+  const start = (t: Tier): number => bands.find(b => b.tier === t)?.from ?? (t === 'costly' ? start('success') : t === 'success' ? start('great') : 20);
+  const raw = (['costly', 'success', 'great'] as const).map(t => {
+    const b = bands.find(x => x.tier === t);
+    // 大成功 moves only half as far: a good plan makes success likely, not a triumph.
+    return { tier: t, from: start(t) - (t === 'great' ? Math.trunc(d / 2) : d), label: b?.label ?? '', reason: b?.reason ?? '' };
+  });
+  const setback = bands.find(b => b.tier === 'setback');
+  return normalizeBands([...raw, ...(setback ? [{ tier: 'setback', from: 1, label: setback.label, reason: setback.reason }] : [])]).bands;
+}
+
 export function tierOf(bands: Band[], face: number): Tier {
   return bands.find(b => face >= b.from && face <= b.to)?.tier ?? (face >= 20 ? 'great' : 'setback');
 }

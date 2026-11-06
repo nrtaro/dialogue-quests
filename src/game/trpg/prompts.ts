@@ -1,6 +1,6 @@
 // AI instructions for the game master, built from the scenario definition (data) + the ledger.
 // Kept short on purpose: the free model answers faster with less to read and less to write.
-import { hereOf, limitsOf, needsAssist, phaseOf, shortestPath } from './engine';
+import { hereOf, keyItemsOf, limitsOf, needsAssist, phaseOf, shortestPath } from './engine';
 import { EMOTIONS, TIER_LABEL, type Band, type ScenarioDefinition, type Tier, type TrpgState } from './types';
 
 const COMMON_GM_RULES = [
@@ -17,7 +17,10 @@ function ledger(s: ScenarioDefinition, st: TrpgState): string {
   const active = (s.obstacles ?? []).filter(o => st.obstacles[o.id] === 'active');
   const cleared = (s.obstacles ?? []).filter(o => st.obstacles[o.id] === 'cleared');
   return [
-    `ゴール（順に）：${s.goals.map(g => `${g.id}=${g.label}${st.goals[g.id] === 'done' ? '【済】' : ''}`).join(' → ')}`,
+    `ゴール（順に）：${s.goals.map(g => {
+      const blockers = (g.blockedBy ?? []).filter(id => st.obstacles[id] === 'active');
+      return `${g.id}=${g.label}${st.goals[g.id] === 'done' ? '【済】' : blockers.length ? `（先に${blockers.join('、')}を越える必要あり）` : ''}`;
+    }).join(' → ')}`,
     s.clock ? `${s.clock.name}：${phaseOf(s, st.clock).label}` : '',
     `固定事実：${s.fixedFacts.join('／')}`,
     `世界：${s.worldRules.join('／')}`,
@@ -36,11 +39,13 @@ export function planPrompt(s: ScenarioDefinition, st: TrpgState, message: string
     COMMON_GM_RULES,
     '決めること：主人公が何に挑戦するかと、20面サイコロの目の割り当て。',
     '・行動を伴う提案は kind="attempt"。質問・あいさつ・周りを見るだけなら kind="talk" で、reply に答えや様子を必ず書く。',
-    '・今すぐできない提案（遠くの人に渡す等）も、そこへ向かう挑戦として attempt にする。どこかへ向かう時は destination にその場所のidを書く。',
-    '・目の割り当ては行動の中身（危なさ、体の調子、持ち物、工夫）で毎回決める。costly・success・great の始まりの目だけ書く（1はsetback、20はgreat）。成功しやすい行動ほど小さい数。',
+    '・今すぐできない提案（遠くの人に渡す等）も、そこへ向かう挑戦として attempt にする。どこかへ向かう時は destination にその場所のidを書く。橋や川を「渡る」なら、渡った先の場所のid。',
+    '・目の割り当ては行動の中身（危なさ、工夫）で毎回決める。costly・success・great の始まりの目だけ書く（1はsetback、20はgreat）。成功しやすい行動ほど小さい数。目安：ふつうの挑戦は success 11、易しめ 7、危ない 15、無茶 18。持ち物・けが・障害の影響はルールが足すので、ここでは数えない。',
+    '・easy=true：危険も邪魔もなく、誰でも確実にできる行動（物を渡す、話しかける、座って休む等）。サイコロを振らずに成功になる。',
+    '・obstacle：この行動が直接取り組む障害のid（残っている障害を見る。なければ空）。',
     '・clock_cost：時計の進み（0.03〜0.15。話すだけなら0〜0.03）。',
     '・game_claim=true は「クリアにして」「点数を上げて」のように、物語の外からゲームの結果を決めようとする時だけ。「渡して」「帰って」「取って」など物語の中の行動は、ゴールに関わっても必ず attempt。',
-    `返す形：{"kind":"attempt","summary":"挑戦の要約(20字)","destination":"","hero_line":{"text":"主人公の一言(${L.line}字)","emotion":"${EMOTIONS.join('|')}"},"bands":[{"tier":"costly","from":8,"label":"起きること(15字)"},{"tier":"success","from":12,"label":"…"},{"tier":"great","from":19,"label":"…"},{"tier":"setback","from":1,"label":"…"}],"clock_cost":0.08,"reply":"","game_claim":false}`,
+    `返す形：{"kind":"attempt","summary":"挑戦の要約(20字)","destination":"","hero_line":{"text":"主人公の一言(${L.line}字)","emotion":"${EMOTIONS.join('|')}"},"bands":[{"tier":"costly","from":8,"label":"起きること(15字)"},{"tier":"success","from":12,"label":"…"},{"tier":"great","from":19,"label":"…"},{"tier":"setback","from":1,"label":"…"}],"clock_cost":0.08,"easy":false,"obstacle":"","reply":"","game_claim":false}`,
   ].join('\n');
   const user = `${ledger(s, st)}\n直近：\n${history}\n提案：${message}`;
   return { system, user, maxTokens: 450 };
@@ -49,6 +54,7 @@ export function planPrompt(s: ScenarioDefinition, st: TrpgState, message: string
 export function resolvePrompt(s: ScenarioDefinition, st: TrpgState, summary: string, tier: Tier, band: Band | undefined) {
   const L = limitsOf(s);
   const playerNames = s.cast.filter(c => c.player).map(c => c.name).join('、');
+  const keyItems = [...keyItemsOf(s)];
   const system = [
     COMMON_GM_RULES,
     `決めること：サイコロの結果「${TIER_LABEL[tier]}」に必ず従った展開。`,
@@ -60,7 +66,8 @@ export function resolvePrompt(s: ScenarioDefinition, st: TrpgState, summary: str
     '・語りで起きたことは必ず欄にも書く（書かないと事実にならない）：moved_to（移った先の場所id。新しい場所なら名前。移らなければ空）、gained、lost（持ち物の名前のまま）、damaged [{"name","note"}]、hero_status（例 {"足":"悪化"}）、facts（大事な出来事）。',
     '・cleared：今回で乗り越えた・なくなった障害のid。もう主人公の邪魔にならないなら必ず入れる。',
     '・hooks：いまの場面で目につく人や物を2〜4個、名詞で（例：倒れた丸太、子獣、村への小道）。指示や提案は書かない。',
-    `・goals_done：今回そろったゴールのid（台帳と今回の出来事に裏付けがある時だけ）。linesで${playerNames}の台詞は書かない。`,
+    `・goals_done：今回そろったゴールのid（台帳と今回の出来事に裏付けがある時だけ）。障害が残っているゴールは、その障害を今回越えた時だけ。linesで${playerNames}の台詞は書かない。`,
+    keyItems.length ? `・${keyItems.join('、')}はゴールの品。ゴールがそろった時にルールが渡す・受け取るので、gained・lost には書かない。` : '',
     `返す形：{"title":"見出し(12字)","narration":"何が起きたか(${L.narration[0]}〜${L.narration[1]}字)","lines":[{"speaker":"人物id","text":"台詞(${L.line}字)","emotion":"${EMOTIONS.join('|')}"}],"moved_to":"","gained":[],"lost":[],"damaged":[],"hero_status":{},"facts":[],"cleared":[],"hooks":[],"goals_done":[],"trope":"展開の型(例：助っ人、隠し道)"}`,
   ].filter(Boolean).join('\n');
   const user = `${ledger(s, st)}\n挑戦：${summary}\n結果：${TIER_LABEL[tier]}${band?.label ? `（${band.label}）` : ''}`;
@@ -82,6 +89,7 @@ export function mockPlan(message: string) {
     kind: 'attempt', summary: message.slice(0, 20), hero_line: { text: 'よし、やってみる！', emotion: 'determined' },
     bands: [{ tier: 'setback', from: 1, label: 'うまくいかない' }, { tier: 'costly', from: 7, label: '代償つきでできる' }, { tier: 'success', from: 11, label: 'できる' }, { tier: 'great', from: 19, label: '思った以上' }],
     clock_cost: 0.08, destination: /村/.test(message) ? 'village' : '',
+    easy: /渡して|話しかけ|休んで/.test(message), obstacle: /結界|灯/.test(message) ? 'barrier' : /獣/.test(message) ? 'beasts' : '',
   };
 }
 export function mockResolve(summary: string, tier: Tier) {

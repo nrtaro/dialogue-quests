@@ -23,12 +23,18 @@ export type Location = { id: string; label: string; background: string };
  * `at`: the goal can only be met while the hero is at this location (e.g. 村に帰り着く).
  * `place`: where it normally happens — used for the travel forecast, and the hero is moved there when it is met.
  * `blockedBy`: obstacles that must be cleared first (or in the same turn).
+ * `gives` / `needs`: the goal's key item. Only the rules hand it over (`gives`) or take it (`needs`);
+ * the GM can neither invent nor lose a key item, so a goal can never become impossible.
  */
 export type Goal = {
   id: string; label: string; requires?: string[]; at?: string; place?: string; blockedBy?: string[];
   /** Met by the rules as soon as the hero stands at `at` (with requirements done) — no AI report needed. */
   arrive?: boolean;
+  gives?: string;
+  needs?: string;
 };
+/** A rule-side change to the odds, in die faces (+ easier, − harder). Shown with the dice. */
+export type Modifier = { label: string; value: number; kind: 'item' | 'hook' | 'status' | 'obstacle' };
 /** Something in the way. The GM marks it cleared; the screen lists the ones that remain. */
 export type Obstacle = { id: string; label: string; at?: string };
 /** Ways between locations, and how much of the world clock walking them takes. */
@@ -75,7 +81,9 @@ export type Ending = { kind: 'clear' | 'partial' | 'timeout' | 'score-now' | 'sa
 export type Beat =
   | { type: 'player'; text: string }
   | { type: 'attempt'; actor: string; summary: string; line?: { text: string; emotion: Emotion } }
-  | { type: 'dice-bands'; die: 'd20'; action: string; bands: Band[]; chance: { successOrBetter: number } }
+  | { type: 'dice-bands'; die: 'd20'; action: string; bands: Band[]; chance: { successOrBetter: number }; mods?: Modifier[] }
+  /** An action anyone could do with nothing in the way: no die is rolled. */
+  | { type: 'no-roll'; action: string; reason: string }
   | { type: 'dice-roll'; die: 'd20'; face: number; tier: Tier; natural: 'one' | 'twenty' | null }
   | { type: 'outcome'; tier: Tier; title: string }
   | { type: 'narration'; text: string }
@@ -85,7 +93,9 @@ export type Beat =
   | { type: 'goal'; id: string; label: string; status: 'open' | 'done' | 'lost' }
   | { type: 'obstacle'; id: string; label: string; status: 'cleared' }
   | { type: 'ending'; kind: Ending['kind']; title: string; text: string; highlight?: number }
-  | { type: 'ignored'; text: string };
+  | { type: 'ignored'; text: string }
+  /** A rule explaining itself (e.g. why a goal is not met yet). */
+  | { type: 'note'; text: string };
 
 export type TrpgState = {
   turn: number;

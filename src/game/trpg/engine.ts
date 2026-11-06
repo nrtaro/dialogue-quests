@@ -1,11 +1,12 @@
 // Pure rules of the common TRPG engine. The AI proposes plans and resolutions; these functions
 // check them, apply them to the ledger, advance the world clock, check goals and decide endings.
 import { chanceSuccessOrBetter } from './dice';
-import { EMOTIONS, TIER_LABEL, type Band, type Beat, type Emotion, type Ending, type ScenarioDefinition, type SceneView, type Tier, type TrpgState } from './types';
+import { EMOTIONS, TIER_LABEL, type Band, type Beat, type Emotion, type Ending, type Goal, type Modifier, type ScenarioDefinition, type SceneView, type Tier, type TrpgState } from './types';
 
 export const DEFAULT_LIMITS = { input: 120, narration: [80, 140] as [number, number], line: 40, safetyCap: 30 };
 export const limitsOf = (s: ScenarioDefinition) => ({ ...DEFAULT_LIMITS, ...(s.limits ?? {}) });
 const MAX_FACTS = 24;
+const MAX_ITEMS = 8;
 const CLOCK_COST = { attempt: [0.03, 0.15] as const, talk: [0, 0.03] as const };
 
 const chars = (t: string) => [...t];
@@ -116,7 +117,11 @@ export function forecastOf(s: ScenarioDefinition, st: TrpgState): SceneView['for
 export type Plan =
   | { kind: 'claim' }
   | { kind: 'talk'; reply: string; heroLine: { text: string; emotion: Emotion }; clockCost: number }
-  | { kind: 'attempt'; summary: string; heroLine: { text: string; emotion: Emotion }; bands: unknown; clockCost: number; destination: string };
+  | { kind: 'attempt'; summary: string; heroLine: { text: string; emotion: Emotion }; bands: unknown; clockCost: number; destination: string;
+      /** The GM thinks anyone could do it (hand something over, sit and rest). The rules still roll if something is in the way. */
+      easy: boolean;
+      /** The obstacle this action deals with, if any (then that obstacle is the challenge, not an extra penalty). */
+      obstacle: string };
 
 const MOTION = /帰|戻|行っ|行く|向か|進ん|進む|走|歩|渡っ|渡る|目指|まで/;
 /** When the AI leaves the destination empty: a place named in the player's words with a motion word ("村まで帰って"). */
@@ -141,8 +146,44 @@ export function parsePlan(s: ScenarioDefinition, raw: unknown, message = ''): Pl
   }
   const dest = typeof r.destination === 'string' ? r.destination.trim() : '';
   const destination = s.locations.find(l => l.id === dest || l.label === dest)?.id ?? (message ? inferDestination(s, message) : '');
-  return { kind: 'attempt', summary: cut(r.summary, 20) || '挑戦する', heroLine, bands: r.bands, clockCost: clampCost(cost, 'attempt'), destination };
+  const obstacle = (s.obstacles ?? []).find(o => o.id === r.obstacle)?.id ?? '';
+  return { kind: 'attempt', summary: cut(r.summary, 20) || '挑戦する', heroLine, bands: r.bands, clockCost: clampCost(cost, 'attempt'), destination, easy: r.easy === true, obstacle };
 }
+
+/* ---------- Rule-side odds ---------- */
+
+/** Items no one but the rules may hand out or take away (each goal's `gives` / `needs`). */
+export const keyItemsOf = (s: ScenarioDefinition) => new Set(s.goals.flatMap(g => [g.gives, g.needs]).filter((x): x is string => !!x));
+
+/** Obstacles still active where the hero is, or anywhere on the way to the destination. */
+function obstaclesInTheWay(s: ScenarioDefinition, st: TrpgState, destination: string) {
+  const here = hereOf(st);
+  const path = destination && here ? shortestPath(s, here, destination)?.path ?? [] : [];
+  const places = new Set([here, ...path]);
+  return (s.obstacles ?? []).filter(o => st.obstacles[o.id] === 'active' && o.at && places.has(o.at));
+}
+
+/**
+ * What the rules add to the GM's odds, so the plan itself matters:
+ * using something you carry or something you noticed helps; an injury or an ignored obstacle hurts.
+ */
+export function modifiersOf(s: ScenarioDefinition, st: TrpgState, plan: Extract<Plan, { kind: 'attempt' }>, message: string): Modifier[] {
+  const words = `${message} ${plan.summary}`;
+  const mods: Modifier[] = [];
+  const item = st.items.find(i => words.includes(i.name));
+  if (item) mods.push({ kind: 'item', label: `${item.name}を使う${item.damaged ? '（傷あり）' : ''}`, value: item.damaged ? 1 : 2 });
+  const hook = st.hooks.find(h => h.length >= 2 && words.includes(h) && !(item && item.name === h));
+  if (hook) mods.push({ kind: 'hook', label: `目についた「${hook}」を使う`, value: 2 });
+  const sd = s.clock?.slowdown;
+  if (sd && slowFactor(s, st) > 1) mods.push({ kind: 'status', label: `${sd.key}が痛む`, value: -2 });
+  for (const o of obstaclesInTheWay(s, st, plan.destination)) {
+    if (o.id !== plan.obstacle) mods.push({ kind: 'obstacle', label: `「${o.label}」が邪魔をする`, value: -3 });
+  }
+  return mods;
+}
+export const shiftOf = (mods: Modifier[]) => mods.reduce((a, m) => a + m.value, 0);
+/** No die for an easy action — unless an obstacle is in the way. */
+export const rollsDie = (plan: Extract<Plan, { kind: 'attempt' }>, mods: Modifier[]) => !plan.easy || mods.some(m => m.kind === 'obstacle');
 function clampCost(v: number, kind: keyof typeof CLOCK_COST) {
   const [lo, hi] = CLOCK_COST[kind];
   return Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : (lo + hi) / 2));
@@ -198,12 +239,13 @@ function applyChange(s: ScenarioDefinition, st: TrpgState, c: RawChange): Extrac
   const label = cut(c.label, 30);
   switch (kind) {
     case 'item-add':
-      if (!name || st.items.some(i => i.name === name)) return null;
+      // Key items come only from goals; the bag has a limit.
+      if (!name || st.items.some(i => i.name === name) || keyItemsOf(s).has(name) || st.items.length >= MAX_ITEMS) return null;
       st.items.push({ name });
       return { type: 'change', kind, name, label: label || `${name}を手に入れた` };
     case 'item-remove': {
       const i = st.items.findIndex(x => x.name === name);
-      if (i < 0) return null; // cannot lose what you do not have
+      if (i < 0 || keyItemsOf(s).has(name)) return null; // cannot lose what you do not have, nor a key item
       st.items.splice(i, 1);
       return { type: 'change', kind, name, label: label || `${name}がなくなった` };
     }
@@ -263,7 +305,24 @@ function finish(s: ScenarioDefinition, st: TrpgState, kind: Ending['kind'], narr
   return { kind, title: titles[kind], text: trimText(text, 200) };
 }
 
-export type TurnInput = { message: string; plan: Plan; roll?: { face: number; tier: Tier; bands: Band[] }; resolution?: Resolution };
+/** `auto`: an easy action, met without rolling (face 0, tier success). `mods`: the rule-side odds shown with the dice. */
+export type TurnInput = { message: string; plan: Plan; roll?: { face: number; tier: Tier; bands: Band[]; mods?: Modifier[]; auto?: boolean }; resolution?: Resolution };
+export const NO_ROLL_TITLE = '確実にできる';
+
+/** Why a goal the GM reported cannot count yet, or '' when it can. */
+function goalRefusal(s: ScenarioDefinition, st: TrpgState, g: Goal): string {
+  const block = (g.blockedBy ?? []).map(id => s.obstacles?.find(o => o.id === id)).find(o => o && st.obstacles[o.id] === 'active');
+  if (block) return `まだ「${block.label}」が残っていて、「${g.label}」はできていない。`;
+  if (g.needs && !st.items.some(i => i.name === g.needs)) return `${g.needs}を持っていないので、「${g.label}」はできていない。`;
+  return '';
+}
+function meetGoal(st: TrpgState, g: Goal, beats: Beat[]) {
+  st.goals[g.id] = 'done';
+  if (g.gives && !st.items.some(i => i.name === g.gives)) { st.items.push({ name: g.gives }); beats.push({ type: 'change', kind: 'item-add', name: g.gives, label: `${g.gives}を手に入れた` }); }
+  if (g.needs) { const i = st.items.findIndex(x => x.name === g.needs); if (i >= 0) { st.items.splice(i, 1); beats.push({ type: 'change', kind: 'item-remove', name: g.needs, label: `${g.needs}を渡した` }); } }
+  beats.push({ type: 'goal', id: g.id, label: g.label, status: 'done' });
+  remember(st, `【達成】${g.label}`);
+}
 
 /** Apply one complete turn. Pure: returns a new state and the beats to present. */
 export function applyTurn(s: ScenarioDefinition, prev: TrpgState, t: TurnInput): { state: TrpgState; beats: Beat[] } {
@@ -288,14 +347,20 @@ export function applyTurn(s: ScenarioDefinition, prev: TrpgState, t: TurnInput):
     const roll = t.roll, res = t.resolution;
     if (!roll || !res) throw Error('サイコロと結果がそろっていません。');
     beats.push({ type: 'attempt', actor: hero, summary: t.plan.summary, ...(t.plan.heroLine.text ? { line: t.plan.heroLine } : {}) });
-    beats.push({ type: 'dice-bands', die: 'd20', action: t.plan.summary, bands: roll.bands, chance: { successOrBetter: chanceSuccessOrBetter(roll.bands) } });
-    beats.push({ type: 'dice-roll', die: 'd20', face: roll.face, tier: roll.tier, natural: roll.face === 1 ? 'one' : roll.face === 20 ? 'twenty' : null });
-    beats.push({ type: 'outcome', tier: roll.tier, title: res.title || TIER_LABEL[roll.tier] });
+    if (roll.auto) beats.push({ type: 'no-roll', action: t.plan.summary, reason: NO_ROLL_TITLE });
+    else {
+      beats.push({ type: 'dice-bands', die: 'd20', action: t.plan.summary, bands: roll.bands, chance: { successOrBetter: chanceSuccessOrBetter(roll.bands) }, ...(roll.mods?.length ? { mods: roll.mods } : {}) });
+      beats.push({ type: 'dice-roll', die: 'd20', face: roll.face, tier: roll.tier, natural: roll.face === 1 ? 'one' : roll.face === 20 ? 'twenty' : null });
+    }
+    beats.push({ type: 'outcome', tier: roll.tier, title: res.title || (roll.auto ? NO_ROLL_TITLE : TIER_LABEL[roll.tier]) });
     if (res.narration) beats.push({ type: 'narration', text: res.narration });
     for (const l of res.lines) beats.push({ type: 'line', ...l });
     st.heroEmotion = res.lines.find(l => l.speaker === hero)?.emotion ?? t.plan.heroLine.emotion;
     const startHere = hereOf(prev);
-    for (const c of res.changes) { const b = applyChange(s, st, c); if (b) { beats.push(b); remember(st, b.label); } }
+    for (const c of res.changes) {
+      if (roll.tier === 'setback' && c.kind === 'item-add') continue; // a failed attempt gives clues, not loot
+      const b = applyChange(s, st, c); if (b) { beats.push(b); remember(st, b.label); }
+    }
     remember(st, `${t.plan.summary}→${TIER_LABEL[roll.tier]}${res.title ? `（${res.title}）` : ''}`);
     if (res.trope) st.tropes = [...st.tropes, res.trope].slice(-3);
     if (res.hooks.length) st.hooks = res.hooks;
@@ -309,7 +374,10 @@ export function applyTurn(s: ScenarioDefinition, prev: TrpgState, t: TurnInput):
       const p = startHere && st.location.id !== 'new' ? shortestPath(s, startHere, st.location.id) : null;
       if (p) travelCost = p.cost * slow;
     } else if (tripAsked) {
-      const p = shortestPath(s, startHere, t.plan.destination);
+      // If the story went on past the destination along the same way (crossed the bridge to the far bank), follow it.
+      const aiTo = st.location.id;
+      const beyond = aiTo !== startHere && s.locations.some(l => l.id === aiTo) && (shortestPath(s, startHere, aiTo)?.path.includes(t.plan.destination) ?? false);
+      const p = shortestPath(s, startHere, beyond ? aiTo : t.plan.destination);
       if (p && p.path.length > 1) {
         let covered = 0, reached = startHere;
         for (let i = 1; i < p.path.length; i++) {
@@ -318,11 +386,13 @@ export function applyTurn(s: ScenarioDefinition, prev: TrpgState, t: TurnInput):
           covered += leg; reached = p.path[i];
         }
         const loc = s.locations.find(l => l.id === reached);
-        if (loc && loc.id !== st.location.id) {
-          const from = st.location.id;
-          st.location = { id: loc.id, label: loc.label, background: loc.background };
-          beats.push({ type: 'change', kind: 'location', from, to: loc.id, background: loc.background, label: loc.label });
-          remember(st, `${loc.label}に着いた`);
+        if (loc && loc.id !== startHere) {
+          if (loc.id !== st.location.id) {
+            const from = st.location.id;
+            st.location = { id: loc.id, label: loc.label, background: loc.background };
+            beats.push({ type: 'change', kind: 'location', from, to: loc.id, background: loc.background, label: loc.label });
+            remember(st, `${loc.label}に着いた`);
+          }
           travelCost = covered * slow * (roll.tier === 'costly' ? 1.3 : 1);
         }
       }
@@ -344,13 +414,15 @@ export function applyTurn(s: ScenarioDefinition, prev: TrpgState, t: TurnInput):
         if (!g || st.goals[id] === 'done') continue;
         if ((g.requires ?? []).some(r => st.goals[r] !== 'done')) continue;
         if (g.at && hereOf(st) !== g.at) continue;
-        if ((g.blockedBy ?? []).some(o => st.obstacles[o] === 'active')) continue;
-        st.goals[id] = 'done';
-        beats.push({ type: 'goal', id, label: g.label, status: 'done' });
-        remember(st, `【達成】${g.label}`);
-        // Meeting the goal means being where it happens (unless the turn was a trip elsewhere).
+        // Say why, so the player knows what is left (the story may have hoped otherwise).
+        const refusal = goalRefusal(s, st, g);
+        if (refusal) { beats.push({ type: 'note', text: refusal }); remember(st, refusal); continue; }
+        meetGoal(st, g, beats);
+        // Meeting the goal means being where it happens (unless the turn was a trip elsewhere) — and walking there takes time.
         if (g.place && hereOf(st) !== g.place && !tripAsked) {
           const loc = s.locations.find(l => l.id === g.place);
+          const walk = hereOf(st) ? shortestPath(s, hereOf(st), g.place) : null;
+          if (walk) cost += walk.cost * slow;
           if (loc) { const from = st.location.id; st.location = { id: loc.id, label: loc.label, background: loc.background }; beats.push({ type: 'change', kind: 'location', from, to: loc.id, background: loc.background, label: loc.label }); }
         }
       }
@@ -360,10 +432,8 @@ export function applyTurn(s: ScenarioDefinition, prev: TrpgState, t: TurnInput):
   // Arrival goals are checked by the rules alone (e.g. 村に帰り着く).
   for (const g of s.goals) {
     if (!g.arrive || !g.at || st.goals[g.id] === 'done' || hereOf(st) !== g.at) continue;
-    if ((g.requires ?? []).some(r => st.goals[r] !== 'done')) continue;
-    st.goals[g.id] = 'done';
-    beats.push({ type: 'goal', id: g.id, label: g.label, status: 'done' });
-    remember(st, `【達成】${g.label}`);
+    if ((g.requires ?? []).some(r => st.goals[r] !== 'done') || goalRefusal(s, st, g)) continue;
+    meetGoal(st, g, beats);
   }
 
   if (s.clock) {
@@ -382,7 +452,7 @@ export function applyTurn(s: ScenarioDefinition, prev: TrpgState, t: TurnInput):
   else if (st.turn >= L.safetyCap) st.ending = finish(s, st, 'safety-cap', '長い冒険の末、この日はここで一区切りとなった。');
   if (st.ending) beats.push({ type: 'ending', ...st.ending });
 
-  st.turns.push({ turn: st.turn, beats, ...(t.roll ? { face: t.roll.face, tier: t.roll.tier } : {}) });
+  st.turns.push({ turn: st.turn, beats, ...(t.roll ? { tier: t.roll.tier, ...(t.roll.auto ? {} : { face: t.roll.face }) } : {}) });
   return { state: st, beats };
 }
 

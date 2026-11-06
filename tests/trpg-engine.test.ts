@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { chanceSuccessOrBetter, normalizeBands, tierOf } from '../src/game/trpg/dice';
-import { applyTurn, createState, parsePlan, parseResolution, sceneOf, trimText } from '../src/game/trpg/engine';
+import { chanceSuccessOrBetter, normalizeBands, shiftBands, tierOf } from '../src/game/trpg/dice';
+import { applyTurn, createState, modifiersOf, parsePlan, parseResolution, sceneOf, trimText } from '../src/game/trpg/engine';
 import { defineScenario } from '../src/game/trpg/content';
-import type { ScenarioDefinition } from '../src/game/trpg/types';
+import type { Beat, ScenarioDefinition } from '../src/game/trpg/types';
 import { heroWhisperScenario, heroWhisperTrpg } from '../src/content/scenarios/hero-whisper';
 import { resolveTrpgTurn, InputTooLong } from '../src/server/trpg-turn';
 import { SessionStore } from '../src/server/session';
@@ -54,13 +54,15 @@ describe('台帳とゴール（ルール側）', () => {
   it('成功ならゴールを順に達成し、全部そろえばクリア（村のゴールは村にいる時だけ）', () => {
     let st = createState(H);
     const step = (id: string, extra: Record<string, unknown> = {}) => applyTurn(H, st, { message: 'x', plan: parsePlan(H, attempt('進む')), roll: roll(16, 'success'), resolution: parseResolution(H, { title: 'よし', narration: 'うまくいった。', goals_done: [id], ...extra }) }).state;
-    st = step('get-herb', { gained: ['月白草'] });
-    st = step('return-village'); // still at the fork: not counted
+    st = step('get-herb', { cleared: ['barrier'] });
+    expect(st.items.map(i => i.name)).toContain('月白草'); // the rules hand over the goal's key item
+    st = step('return-village'); // at the shrine: not counted
     expect(st.goals['return-village']).toBe('open');
     st = step('return-village', { moved_to: 'village' });
-    st = step('deliver', { lost: ['月白草'] });
+    st = step('deliver');
     expect(st.ending?.kind).toBe('clear');
     expect(st.location.id).toBe('village');
+    expect(st.items.map(i => i.name)).not.toContain('月白草'); // handed to the healer
   });
   it('専用の欄（移動・入手・紛失・損傷・状態）を台帳に反映する', () => {
     const res = parseResolution(H, { narration: '…', moved_to: '村の近くの丘', moved_background: 'forest', gained: ['丸太'], lost: ['干し肉', 'ランプ'], damaged: [{ name: '上着', note: '破れた' }], hero_status: { 足: '悪化' }, facts: ['子獣がなついた'] });
@@ -109,7 +111,7 @@ describe('道のり・障害・目につくもの（共通の仕組み）', () =
     expect(slowHurt.clock).toBeCloseTo(0.15 * 1.4 * 1.3, 2);
   });
   it('行き先を言った手番では、AIが別の場所へ動かしても、ルールが行き先への移動を優先する', () => {
-    const st = go({ ...createState(H), location: { id: 'shrine', label: '月白草の祠', background: 'forest' } }, 'village', 'success', { moved_to: 'shrine-gate', goals_done: ['get-herb'], gained: ['月白草'] });
+    const st = go({ ...createState(H), location: { id: 'shrine', label: '月白草の祠', background: 'forest' } }, 'village', 'success', { moved_to: 'shrine-gate', goals_done: ['get-herb'], cleared: ['barrier'] });
     expect(st.location.id).toBe('village');
     expect(st.goals['get-herb']).toBe('done');
   });
@@ -119,6 +121,11 @@ describe('道のり・障害・目につくもの（共通の仕組み）', () =
     expect(st.location.id).toBe('village');
     expect(st.goals['return-village']).toBe('done');
     expect(go(createState(H), 'village', 'great').goals['return-village']).toBe('open'); // no herb yet
+  });
+  it('「吊り橋を渡って」で行き先が橋でも、語りが向こう岸まで進んだなら向こう岸にいる（橋に戻さない）', () => {
+    const st = go(createState(H), 'bridge', 'success', { moved_to: 'riverbank-far' });
+    expect(st.location.id).toBe('riverbank-far');
+    expect(st.clock).toBeCloseTo(0.03 + 0.05, 3); // fork → bridge → far bank, by the routes
   });
   it('AIが行き先を書かなくても、「村まで帰って」の言葉から行き先を拾う', () => {
     expect(parsePlan(H, attempt('帰る'), '村まで帰って')).toMatchObject({ destination: 'village' });
@@ -143,10 +150,66 @@ describe('道のり・障害・目につくもの（共通の仕組み）', () =
     expect(sceneOf(H, st).hooks).toHaveLength(3);
     expect(go(createState(H), '', 'setback', { cleared: ['beasts'] }).obstacles.beasts).toBe('active');
   });
-  it('ゴールを達成したら、その場所にいることにする（語りと場所のずれを防ぐ）', () => {
-    const st = go({ ...createState(H), location: { id: 'riverbank-far', label: '川の向こう岸', background: 'forest' } }, '', 'success', { goals_done: ['get-herb'], gained: ['月白草'] });
+  it('ゴールを達成したら、その場所にいることにする（語りと場所のずれを防ぐ）。歩いた分の時間もかかる', () => {
+    const st = go({ ...createState(H), location: { id: 'riverbank-far', label: '川の向こう岸', background: 'forest' } }, '', 'success', { goals_done: ['get-herb'], cleared: ['barrier'] });
     expect(st.goals['get-herb']).toBe('done');
     expect(st.location.id).toBe('shrine');
+    expect(st.clock).toBeCloseTo(0.1 + 0.07, 3); // the action itself + far bank → gate → shrine
+  });
+  it('障害がゴールを塞いでいる間は、AIが達成と言っても達成にせず、理由を出す', () => {
+    const atShrine = { ...createState(H), location: { id: 'shrine', label: '月白草の祠', background: 'forest' } };
+    const { state, beats } = applyTurn(H, atShrine, { message: '草を取って', plan: parsePlan(H, attempt('草を取る')), roll: roll('success'), resolution: parseResolution(H, { narration: '草に手を伸ばした。', goals_done: ['get-herb'] }) });
+    expect(state.goals['get-herb']).toBe('open');
+    expect(beats.find(b => b.type === 'note')).toMatchObject({ text: expect.stringContaining('台座を守る灯の結界') });
+    expect(state.items.map(i => i.name)).not.toContain('月白草');
+  });
+  it('ゴールの品はAIが勝手に渡したり消したりできない。失敗では物を拾えず、持ち物には上限がある', () => {
+    const plan = parsePlan(H, attempt('探す'));
+    const herb = applyTurn(H, createState(H), { message: 'x', plan, roll: roll('great'), resolution: parseResolution(H, { narration: '…', gained: ['月白草', '丸太'] }) }).state;
+    expect(herb.items.map(i => i.name)).toEqual(['剣', '包帯', '干し肉', '上着', '丸太']);
+    const failed = applyTurn(H, createState(H), { message: 'x', plan, roll: roll('setback'), resolution: parseResolution(H, { narration: '…', gained: ['丸太'] }) }).state;
+    expect(failed.items.map(i => i.name)).not.toContain('丸太');
+    const holding = { ...createState(H), items: [{ name: '月白草' }] };
+    expect(applyTurn(H, holding, { message: 'x', plan, roll: roll('costly'), resolution: parseResolution(H, { narration: '…', lost: ['月白草'] }) }).state.items).toEqual([{ name: '月白草' }]);
+    const full = applyTurn(H, createState(H), { message: 'x', plan, roll: roll('great'), resolution: parseResolution(H, { narration: '…', gained: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6'] }) }).state;
+    expect(full.items).toHaveLength(8);
+  });
+});
+
+describe('ルールによる成功率の調整', () => {
+  const plan = (extra: Record<string, unknown> = {}) => parsePlan(H, { ...attempt('挑戦'), ...extra }) as Extract<ReturnType<typeof parsePlan>, { kind: 'attempt' }>;
+  it('持ち物・目についた物を使うと易しく、けがや無視した障害で難しくなる', () => {
+    const st = { ...createState(H), hooks: ['倒れた丸太'] };
+    expect(modifiersOf(H, st, plan(), '剣で倒れた丸太を押して橋にして').map(m => m.value)).toEqual([2, 2]);
+    const hurt = { ...st, statuses: { rio: { 足: '悪化' } } };
+    expect(modifiersOf(H, hurt, plan(), '走って').map(m => m.kind)).toEqual(['status']);
+    const gate = { ...createState(H), location: { id: 'shrine-gate', label: '祠の入口', background: 'forest' } };
+    expect(modifiersOf(H, gate, plan(), '獣は無視して進んで').map(m => m.value)).toEqual([-3]);
+    expect(modifiersOf(H, gate, plan({ obstacle: 'beasts' }), '獣に干し肉を見せて').map(m => m.kind)).toEqual(['item']);
+    // On the way: the path from the far bank to the shrine passes the gate
+    const far = { ...createState(H), location: { id: 'riverbank-far', label: '川の向こう岸', background: 'forest' } };
+    expect(modifiersOf(H, far, plan({ destination: 'shrine' }), '祠まで行って').some(m => m.kind === 'obstacle')).toBe(true);
+  });
+  it('調整は目の割り当てをずらす（大成功は半分だけ。1と20の決まりは保つ）', () => {
+    const base = normalizeBands([{ tier: 'costly', from: 7 }, { tier: 'success', from: 11 }, { tier: 'great', from: 20 }]).bands;
+    const easier = shiftBands(base, 4);
+    expect(easier.map(b => [b.tier, b.from])).toEqual([['setback', 1], ['costly', 3], ['success', 7], ['great', 18]]);
+    const harder = shiftBands(base, -9); // capped at 5
+    expect(harder.map(b => [b.tier, b.from])).toEqual([['setback', 1], ['costly', 12], ['success', 16], ['great', 20]]);
+    expect(shiftBands(base, 0)).toBe(base);
+  });
+  it('簡単な行動はサイコロを振らずに成功する。障害があれば振る', async () => {
+    const atVillage = { ...createState(H), location: { id: 'village', label: '村', background: 'village' } };
+    const { p } = gm({ ...attempt('薬師に話しかける'), easy: true }, { narration: '薬師はうなずいた。' });
+    let rolled = false;
+    const out = await resolveTrpgTurn(H, p, atVillage, [], '薬師に話しかけて', () => { rolled = true; return 1; });
+    expect(rolled).toBe(false);
+    expect(out.beats.map(b => b.type)).toContain('no-roll');
+    expect(out.beats.some(b => b.type === 'dice-roll')).toBe(false);
+    expect(out.state.turns.at(-1)).toMatchObject({ tier: 'success' });
+    const gate = { ...createState(H), location: { id: 'shrine-gate', label: '祠の入口', background: 'forest' } };
+    const blocked = await resolveTrpgTurn(H, gm({ ...attempt('座って休む'), easy: true }, { narration: '…' }).p, gate, [], '座って休んで', () => 15);
+    expect(blocked.beats.some(b => b.type === 'dice-roll')).toBe(true);
   });
 });
 
@@ -205,5 +268,24 @@ describe('セッションで遊ぶ（モックGM）', () => {
     expect(v.messages.some(m => m.role === 'result' && m.text.startsWith('🎲'))).toBe(true);
     const end = await store.turn(s.id, 'owner', { requestId: 'request-t002', revision: 1, message: 'ここまでで採点' });
     expect(end.state.ending).not.toBeNull();
+  });
+  it('サイコロを見せた後に語りのAIが失敗しても、再試行で振り直さない（文を変えても同じ目）', async () => {
+    let fails = 2, plans = 0;
+    const p: Provider = { mode: 'workers-ai', async propose() { throw Error('unused'); }, async complete(req: CompleteRequest) {
+      if (req.purpose === 'plan') { plans++; return { proposal: attempt('泳ぐ'), model: 'fake' }; }
+      if (fails-- > 0) throw Error('AIの応答が不正です。状態は変更していません。');
+      return { proposal: { narration: '泳いだ。' }, model: 'fake' };
+    } };
+    const store = new SessionStore(p, [heroWhisperTrpg as AnyContent]);
+    const s = store.create('hero-trpg', 'owner');
+    const faces: number[] = [];
+    const seeFace = (beats: Beat[]) => { const r = beats.find(b => b.type === 'dice-roll'); if (r?.type === 'dice-roll') faces.push(r.face); };
+    const first = { requestId: 'request-r001', revision: 0, message: '川を泳いで渡って' };
+    await expect(store.turn(s.id, 'owner', first, seeFace)).rejects.toThrow();
+    await expect(store.turn(s.id, 'owner', first, seeFace)).rejects.toThrow();
+    expect(plans).toBe(1); // the same request reuses the plan
+    const v = await store.turn(s.id, 'owner', { requestId: 'request-r002', revision: 0, message: '川を泳いで渡ってみて' }, seeFace);
+    expect(new Set(faces).size).toBe(1);
+    expect(v.state.scene?.lastBeats.find(b => b.type === 'dice-roll')).toMatchObject({ face: faces[0] });
   });
 });

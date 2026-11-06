@@ -472,6 +472,11 @@ footer { display:flex; justify-content:space-between; gap:14px; padding:18px 0; 
 .trpg-dice-faces li { text-align:center; font-size:9px; font-weight:800; padding:2px 0; border-radius:3px; }
 .trpg-dice-faces li.hit { outline:2px solid var(--ink); transform:scale(1.25); position:relative; z-index:1; }
 .tier-setback { background:#d9d6e3; } .tier-costly { background:#ffd6c9; } .tier-success { background:#bcebdc; } .tier-great { background:#ffe394; }
+.trpg-dice-mods { list-style:none; margin:6px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:3px; }
+.trpg-dice-mods li { border-radius:999px; padding:0 7px; font-weight:800; border:1.5px solid var(--ink); background:#fff; }
+.trpg-dice-mods li.plus { background:#dff5e3; }
+.trpg-dice-mods li.minus { background:#fde2e0; }
+.trpg-d20.no-roll { font-size:18px; }
 .trpg-dice-bands { list-style:none; margin:0; padding:0; display:grid; gap:2px; }
 .trpg-dice-bands li { border-radius:6px; padding:1px 6px; }
 .trpg-side { min-height:0; display:flex; flex-direction:column; background:var(--paper); border:var(--line); border-radius:16px 20px 14px 22px; box-shadow:var(--shadow); overflow:hidden; }

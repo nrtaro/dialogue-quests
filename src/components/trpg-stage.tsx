@@ -38,6 +38,13 @@ function Dice({ beats }: { beats: Beat[] }) {
   const bandsBeat = beats.find(b => b.type === 'dice-bands') as Extract<Beat, { type: 'dice-bands' }> | undefined;
   const roll = beats.find(b => b.type === 'dice-roll') as Extract<Beat, { type: 'dice-roll' }> | undefined;
   const outcome = beats.find(b => b.type === 'outcome') as Extract<Beat, { type: 'outcome' }> | undefined;
+  const noRoll = beats.find(b => b.type === 'no-roll') as Extract<Beat, { type: 'no-roll' }> | undefined;
+  if (noRoll) return <section className="trpg-dice tier-success" aria-label="サイコロなし">
+    <div className="trpg-dice-head">
+      <span className="trpg-d20 no-roll" aria-hidden="true">✓</span>
+      <div><small>挑戦：{noRoll.action}（サイコロなし）</small><strong>{TIER_MARK.success} {outcome?.title ?? noRoll.reason}</strong></div>
+    </div>
+  </section>;
   if (!bandsBeat || !roll) return null;
   const tierAt = (f: number) => bandsBeat.bands.find(b => f >= b.from && f <= b.to)?.tier ?? 'setback';
   return <section className={`trpg-dice tier-${roll.tier}`} aria-label="サイコロの結果">
@@ -46,6 +53,9 @@ function Dice({ beats }: { beats: Beat[] }) {
       <div><small>挑戦：{bandsBeat.action}（成功以上 {Math.round(bandsBeat.chance.successOrBetter * 100)}%）</small>
         <strong>{TIER_MARK[roll.tier]} {outcome?.title ?? TIER_NAME[roll.tier]}</strong></div>
     </div>
+    {bandsBeat.mods?.length ? <ul className="trpg-dice-mods" aria-label="ルールによる目の調整">
+      {bandsBeat.mods.map(m => <li key={m.label} className={m.value > 0 ? 'plus' : 'minus'}>{m.value > 0 ? '＋' : '－'}{Math.abs(m.value)} {m.label}</li>)}
+    </ul> : null}
     <ol className="trpg-dice-faces" aria-label="目の割り当て">
       {Array.from({ length: 20 }, (_, i) => i + 1).map(f => <li key={f} className={`tier-${tierAt(f)} ${f === roll.face ? 'hit' : ''}`} title={`${f}`}>{f}</li>)}
     </ol>
