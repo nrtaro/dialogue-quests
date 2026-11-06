@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { ActionOption, AIResult, AppraiseContext, InterpretContext, Proposal, Provider, ProviderContext } from '../game/types';
+import type { ActionOption, AIResult, AppraiseContext, CompleteRequest, InterpretContext, Proposal, Provider, ProviderContext } from '../game/types';
 import { mockVerdicts } from '../game/appraisal';
 import { DailyBudget } from './quota';
 import { WorkersAIProvider } from './workers-ai';
@@ -24,6 +24,9 @@ export class MockProvider implements Provider {
   }
   async appraise(ctx: AppraiseContext): Promise<AIResult> {
     return { proposal: ctx.mockVerdicts ?? mockVerdicts(ctx.need), model: 'mock-rules-v1' };
+  }
+  async complete(req: CompleteRequest): Promise<AIResult> {
+    return { proposal: req.mock, model: 'mock-rules-v1' };
   }
 }
 
@@ -88,7 +91,11 @@ export function createProvider(): Provider {
     const account = process.env.CLOUDFLARE_ACCOUNT_ID, token = process.env.CLOUDFLARE_API_TOKEN;
     if (!account || !token) throw Error('サーバーの.env.localにCLOUDFLARE_ACCOUNT_IDとCLOUDFLARE_API_TOKENを設定して再起動してください。');
     const budget = new DailyBudget(Number(process.env.AI_DAILY_NEURONS) || 10000, Number(process.env.AI_PLAY_RESERVE) || 900);
-    return new WorkersAIProvider(account, token, process.env.WORKERS_AI_MODEL || '@cf/google/gemma-4-26b-a4b-it', budget);
+    const provider = new WorkersAIProvider(account, token, process.env.WORKERS_AI_MODEL || '@cf/google/gemma-4-26b-a4b-it', budget);
+    // Short planning calls (TRPG dice plan) use a faster model; "same" keeps one model for everything.
+    const plan = process.env.WORKERS_AI_PLAN_MODEL ?? '@cf/qwen/qwen3-30b-a3b-fp8';
+    if (plan && plan !== 'same') provider.planModel = plan;
+    return provider;
   }
   if (process.env.AI_PROVIDER !== 'openai') throw Error('AI_PROVIDERはmock・workers-ai・openaiのいずれかを設定してください。');
   if (!process.env.OPENAI_API_KEY) throw Error('サーバーの.env.localにOPENAI_API_KEYを設定して再起動してください。');

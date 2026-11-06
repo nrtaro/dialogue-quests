@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { contents } from '../content/registry';
-import type { AnyContent, ContentDefinition, EffectContentDefinition, Message, PublicState, Provider, SessionView, TurnRecord } from '../game/types';
+import type { AnyContent, ContentDefinition, EffectContentDefinition, Message, PublicState, Provider, SessionView, TrpgContentDefinition, TurnRecord } from '../game/types';
 import { createProvider, parseProposal } from './ai';
 import { QuotaExhausted } from './quota';
 import { resolveEffectTurn } from './effect-turn';
+import { beatsToMessages, InputTooLong, resolveTrpgTurn } from './trpg-turn';
+import { scoreNow as scoreTrpgNow } from '../game/trpg/engine';
+import type { Beat, TrpgState } from '../game/trpg/types';
+
+const SCORE_NOW = 'ここまでで採点';
 
 export const turnSchema = z.object({ requestId: z.string().min(8).max(100), revision: z.number().int().min(0), message: z.string().trim().min(1).max(2000) }).strict();
 type TurnInput = z.infer<typeof turnSchema>;
@@ -15,7 +20,7 @@ type Session = {
   requests: Map<string, { input: string; view: SessionView }>;
   pending?: { id: string } & Pending;
 };
-const viewOf = (c: AnyContent, state: unknown): PublicState => c.view(state);
+const viewOf = (c: AnyContent, state: unknown): PublicState => (c.view as (s: unknown) => PublicState)(state);
 
 export class GameError extends Error {
   readonly kind = 'dialogue-game-error';
@@ -54,7 +59,8 @@ export class SessionStore {
     if (s.pending) throw new GameError('応答を処理中です。完了後にリセットしてください。', 409);
     this.sessions.delete(id);
   }
-  async turn(id: string, owner: string, raw: TurnInput): Promise<SessionView> {
+  /** `onPreview`: TRPG games send the attempt and dice beats as soon as the die is rolled (two-stage display). */
+  async turn(id: string, owner: string, raw: TurnInput, onPreview?: (beats: Beat[]) => void): Promise<SessionView> {
     const input = turnSchema.parse(raw);
     const s = this.get(id, owner);
     const fingerprint = JSON.stringify(input);
@@ -70,12 +76,12 @@ export class SessionStore {
     if (s.revision !== input.revision) throw new GameError('画面の状態が更新されています。最新状態を読み直してください。', 409);
     if (viewOf(s.content, s.state).ending) throw new GameError('このミッションは終了しています。再挑戦できます。');
     if (s.revision >= 100) throw new GameError('このプレイの会話上限に達しました。ログを保存して再挑戦してください。', 429);
-    const promise = this.perform(s, input, fingerprint);
+    const promise = this.perform(s, input, fingerprint, onPreview);
     s.pending = { id: input.requestId, input: fingerprint, promise };
     try { return await promise; } finally { s.pending = undefined; }
   }
   /** Runs the AI and the content rules. Throws before any state is committed. */
-  private async resolve(s: Session, message: string) {
+  private async resolve(s: Session, message: string, onPreview?: (beats: Beat[]) => void) {
     const content = s.content;
     const mock = this.provider.mode === 'mock';
     if (content.kind === 'effect') {
@@ -86,17 +92,32 @@ export class SessionStore {
       const ai = { proposal: null, model: out.calls[0]?.model ?? 'unknown', ...(usage ? { usage } : {}) };
       return { ai, state: out.state, speech: out.speech, action: `effect:${out.judgment}${out.appraised ? '+appraisal' : ''}`, result: out.result, elapsed: 0, notes: out.notes ?? [] };
     }
+    if (content.kind === 'trpg') {
+      const c = content as TrpgContentDefinition;
+      if (message.trim() === SCORE_NOW) {
+        const state = scoreTrpgNow(c.scenario, s.state as TrpgState);
+        return { ai: { proposal: null, model: s.model }, state, speech: 'えっ、ここで終わり？', action: 'trpg:score-now', result: 'ここで冒険を区切った。', elapsed: 0, notes: [] as Message[] };
+      }
+      let out;
+      try { out = await resolveTrpgTurn(c.scenario, this.provider, s.state as TrpgState, s.messages, message, undefined, onPreview); }
+      catch (e) { if (e instanceof InputTooLong) throw new GameError(e.message, 400); throw e; }
+      const usage = out.calls.reduce<{ input: number; output: number } | undefined>((sum, r) => r.usage ? { input: (sum?.input ?? 0) + r.usage.input, output: (sum?.output ?? 0) + r.usage.output } : sum, undefined);
+      const ai = { proposal: null, model: out.calls[0]?.model ?? s.model, ...(usage ? { usage } : {}) };
+      const m = beatsToMessages(c.scenario, out.beats);
+      const last = out.state.turns.at(-1);
+      return { ai, state: out.state, speech: m.speech, action: `trpg:${last?.tier ?? 'talk'}${last?.face ? `:${last.face}` : ''}`, result: m.result, elapsed: 0, notes: m.notes };
+    }
     const c = content as ContentDefinition;
     const ai = await this.provider.propose({ content: c.info, situation: c.context(structuredClone(s.state)), actions: c.available(s.state), history: structuredClone(s.messages), message, ...(mock ? { mockProposal: c.mock(structuredClone(s.state), message) } : {}) });
     const proposal = parseProposal(ai.proposal, c.available(s.state));
     const applied = c.apply(structuredClone(s.state), proposal.action);
     return { ai, state: applied.state, speech: proposal.speech, action: proposal.action, result: applied.result, elapsed: applied.elapsed, notes: [] as Message[] };
   }
-  private async perform(s: Session, input: TurnInput, fingerprint: string): Promise<SessionView> {
+  private async perform(s: Session, input: TurnInput, fingerprint: string, onPreview?: (beats: Beat[]) => void): Promise<SessionView> {
     const started = Date.now();
     const before = structuredClone(viewOf(s.content, s.state));
     let r: Awaited<ReturnType<SessionStore['resolve']>>;
-    try { r = await this.resolve(s, input.message); }
+    try { r = await this.resolve(s, input.message, onPreview); }
     catch (e) { if (e instanceof QuotaExhausted) throw quotaError(e.resetAt); throw e; }
     const after = viewOf(s.content, r.state);
     const record: TurnRecord = { requestId: input.requestId, revision: s.revision + 1, player: input.message, speech: r.speech, action: r.action, before, after: structuredClone(after), elapsed: r.elapsed, result: r.result, model: r.ai.model, ...(r.ai.usage ? { usage: r.ai.usage } : {}), responseMs: Date.now() - started, timestamp: new Date().toISOString() };

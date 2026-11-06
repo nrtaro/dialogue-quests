@@ -72,6 +72,24 @@ describe('Workers AIへの接続', () => {
     await expect(p.interpret(ctx('x'))).rejects.toThrow('混み合っています');
     expect(b.remaining()).toBe(10000);
   });
+  it('計画の呼び出しだけ速いモデルを使い、Qwen3の答えの置き場所の癖にも対応する', async () => {
+    const seen: { model: string; user: string; kwargs: boolean }[] = [];
+    const f = (async (url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      seen.push({ model: url.split('/run/')[1], user: body.messages[1].content, kwargs: 'chat_template_kwargs' in body });
+      const qwen = url.includes('qwen3');
+      return new Response(JSON.stringify({ result: { choices: [{ finish_reason: 'stop', message: qwen ? { content: null, reasoning_content: '{"kind":"talk"}' } : { content: '{"narration":"ok"}' } }], usage: { prompt_tokens: 1, completion_tokens: 1, neurons: 0.1 } } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const p = new WorkersAIProvider('a'.repeat(32), 'token', '@cf/google/gemma-4-26b-a4b-it', new DailyBudget(10000, 900), f);
+    p.planModel = '@cf/qwen/qwen3-30b-a3b-fp8';
+    const plan = await p.complete({ purpose: 'plan', system: 's', user: 'u', maxTokens: 10, mock: null });
+    const story = await p.complete({ purpose: 'resolve', system: 's', user: 'u', maxTokens: 10, mock: null });
+    expect(plan.proposal).toEqual({ kind: 'talk' });
+    expect(story.proposal).toEqual({ narration: 'ok' });
+    expect(seen.map(x => x.model)).toEqual(['@cf/qwen/qwen3-30b-a3b-fp8', '@cf/google/gemma-4-26b-a4b-it']);
+    expect(seen[0]).toMatchObject({ user: 'u /no_think', kwargs: false });
+    expect(seen[1]).toMatchObject({ user: 'u', kwargs: true });
+  });
   it('途中で止まった応答（length）は失敗にする', async () => {
     const f = reply(200, { result: { choices: [{ finish_reason: 'length', message: { content: '{"kind":' } }] } });
     const p = new WorkersAIProvider('a'.repeat(32), 'token', 'm', new DailyBudget(10000, 900), f);

@@ -4,14 +4,24 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ContentInfo, Message, PublicState, SessionView } from '../game/types';
 import { defaultVisuals, resolveVisuals } from '../game/presentation';
 import { Artwork } from './artwork';
+import { TrpgStage } from './trpg-stage';
+import type { Beat } from '../game/trpg/types';
 
 type StageProps = {
   session: SessionView; draft: string; busy: boolean; pending: boolean;
+  /** TRPG: beats shown before the turn is finished (the dice). */
+  preview?: Beat[] | null;
   onDraft: (text: string) => void; onSend: (message: string) => Promise<void>;
   onRestart: () => void; onBack: () => void; onDownload: (format: 'json' | 'text') => void;
 };
 
-export function MissionStage({ session, draft, busy, pending, onDraft, onSend, onRestart, onBack, onDownload }: StageProps) {
+export function MissionStage(props: StageProps) {
+  // TRPG scenarios have their own screen; everything it needs is in state.scene.
+  if (props.session.state.scene) return <TrpgStage {...props} />;
+  return <ClassicStage {...props} />;
+}
+
+function ClassicStage({ session, draft, busy, pending, onDraft, onSend, onRestart, onBack, onDownload }: StageProps) {
   const { info, state } = session;
   const visuals = resolveVisuals(info.visuals);
   const scroll = useRef<HTMLDivElement>(null);

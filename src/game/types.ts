@@ -1,5 +1,6 @@
 import type { AiDefinition } from './ai-definition';
 import type { AppraisalBook, AppraisalNeed } from './appraisal';
+import type { ScenarioDefinition, SceneView, TrpgState } from './trpg/types';
 
 export type Ending = { success: boolean; title: string; reason: string };
 export type Message = { role: 'narrator' | 'character' | 'player' | 'result'; text: string };
@@ -15,6 +16,8 @@ export type ContentInfo = {
 export type PublicState = {
   location: string; stats: { label: string; value: string; tone?: 'warning' }[];
   inventory: string[]; discoveries: string[]; privateInfo: string[]; ending: Ending | null;
+  /** TRPG games only: everything the play screen needs (clock, goals, dice beats, sprites). */
+  scene?: SceneView;
 };
 export type ActionOption = { id: string; label: string; cost: string };
 export type Applied<S> = { state: S; result: string; elapsed: number };
@@ -54,7 +57,17 @@ export interface EffectContentDefinition<S = unknown> {
   /** Ask the player back without changing anything else (one turn passes). */
   askBack(state: S, line: string, note: string): EffectOutcome<S>;
 }
-export type AnyContent = ContentDefinition | EffectContentDefinition;
+/** A game on the common TRPG engine: the scenario is data; rules, dice and clock are shared. */
+export interface TrpgContentDefinition {
+  kind: 'trpg';
+  info: ContentInfo;
+  scenario: ScenarioDefinition;
+  create(): TrpgState;
+  view(state: TrpgState): PublicState;
+}
+export type AnyContent = ContentDefinition | EffectContentDefinition | TrpgContentDefinition;
+/** A free-form JSON request to the AI (TRPG game master). `mock` is returned by the mock provider. */
+export type CompleteRequest = { purpose: string; system: string; user: string; maxTokens: number; mock: unknown };
 export type AppraiseContext = { content: ContentInfo; need: AppraisalNeed; instructions: string; mockVerdicts?: unknown };
 export type InterpretContext = {
   content: ContentInfo; situation: string; history: Message[]; message: string;
@@ -75,6 +88,8 @@ export interface Provider {
   interpret?(context: InterpretContext): Promise<AIResult>;
   /** 見立て: one call answers every (mark, subject) pair in the need. */
   appraise?(context: AppraiseContext): Promise<AIResult>;
+  /** Free-form JSON completion (TRPG game master). */
+  complete?(request: CompleteRequest): Promise<AIResult>;
 }
 export type TurnRecord = {
   requestId: string; revision: number; player: string; speech: string; action: string;

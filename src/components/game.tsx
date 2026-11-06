@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { ContentInfo, SessionView } from '../game/types';
+import type { Beat } from '../game/trpg/types';
 import { MissionLibrary, MissionBriefing } from './mission-menu';
 import { MissionStage } from './mission-stage';
 import { QuotaScreen } from './quota-screen';
@@ -14,6 +15,34 @@ async function request<T>(url: string, method: string, data?: unknown): Promise<
   if (!response.ok) throw new RequestError(result.error || '通信できませんでした。再試行できます。', response.status, result.code, result.resetAt);
   return result as T;
 }
+/** Reads the NDJSON turn stream: preview beats first (dice), then the committed view. */
+async function streamTurn(url: string, data: unknown, onPreview: (beats: Beat[]) => void): Promise<SessionView> {
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' }, body: JSON.stringify(data), signal: AbortSignal.timeout(120000) });
+  if (!response.ok || !response.body) {
+    const result = await response.json().catch(() => ({}));
+    throw new RequestError(result.error || '通信できませんでした。再試行できます。', response.status, result.code, result.resetAt);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      const msg = JSON.parse(line);
+      if (msg.type === 'preview') onPreview(msg.beats);
+      else if (msg.type === 'done') return msg.view as SessionView;
+      else if (msg.type === 'error') throw new RequestError(msg.error || '通信できませんでした。再試行できます。', msg.status ?? 503, msg.code, msg.resetAt);
+    }
+  }
+  throw new RequestError('応答が途中で切れました。状態を読み直してください。', 503);
+}
+
 async function removeSession(id: string) {
   try { await request(`/api/sessions/${id}`, 'DELETE', {}); }
   catch (e) { if (!(e instanceof RequestError) || ![404, 410].includes(e.status)) throw e; }
@@ -27,6 +56,7 @@ export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock'
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [quota, setQuota] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Beat[] | null>(null);
   const fail = (e: unknown, fallback: string) => {
     if (e instanceof RequestError && e.code === 'ai-quota') { setQuota(e.resetAt ?? ''); setError(''); return; }
     setError(e instanceof Error ? e.message : fallback);
@@ -75,10 +105,13 @@ export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock'
     const next = retry && attempt ? attempt : { requestId: crypto.randomUUID(), revision: session.revision, message: message.trim() };
     lock.current = true; setBusy(true); setError(''); setAttempt(next);
     try {
-      const result = await request<SessionView>(`/api/sessions/${session.id}/turn`, 'POST', next);
+      // TRPG games stream the dice first and the story after (two-stage display).
+      const result = session.state.scene
+        ? await streamTurn(`/api/sessions/${session.id}/turn`, next, setPreview)
+        : await request<SessionView>(`/api/sessions/${session.id}/turn`, 'POST', next);
       setSession(result); setDraft(''); setAttempt(null); setQuota(null);
     } catch (e) { fail(e, '通信できませんでした。本文を残しています。'); }
-    finally { lock.current = false; setBusy(false); }
+    finally { lock.current = false; setBusy(false); setPreview(null); }
   }
   async function refresh() {
     if (!session || lock.current) return;
@@ -116,7 +149,7 @@ export function Game({ contents, mode }: { contents: ContentInfo[]; mode: 'mock'
     {quota !== null && <QuotaScreen resetAt={quota} inPlay={!!session} busy={busy} onRetry={() => { if (session && attempt) void send(attempt.message, true); else if (session) setQuota(null); else if (selected) void start(selected); else setQuota(null); }} onBack={back} />}
     {quota === null && !session && !selected && <MissionLibrary contents={contents} onSelect={setSelected} />}
     {quota === null && !session && selected && <MissionBriefing info={selected} busy={busy} onBack={back} onStart={() => void start(selected)} />}
-    {quota === null && session && <MissionStage key={session.id} session={session} draft={draft} busy={busy} pending={!!attempt} onDraft={setDraft} onSend={send} onRestart={() => void start(session.info)} onBack={back} onDownload={format => void download(format)} />}
+    {quota === null && session && <MissionStage key={session.id} session={session} preview={preview} draft={draft} busy={busy} pending={!!attempt} onDraft={setDraft} onSend={send} onRestart={() => void start(session.info)} onBack={back} onDownload={format => void download(format)} />}
     {error && <div className="error-panel" role="alert"><strong>ちょっと待って！</strong><p>{error}</p><div>{session && attempt && <button disabled={busy} onClick={() => void send(attempt.message, true)}>再試行</button>}{session && <button disabled={busy} onClick={refresh}>最新状態を読み直す</button>}<button disabled={busy} onClick={() => { setAttempt(null); setError(''); }}>閉じて編集する</button></div></div>}
     <footer><span>会話でひらく、ちいさな世界。</span><span>DIALOGUE QUESTS / EARLY PLAYTEST</span></footer>
   </div>;

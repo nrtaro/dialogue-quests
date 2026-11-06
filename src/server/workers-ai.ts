@@ -1,5 +1,5 @@
 // Cloudflare Workers AI (free tier) provider. Request shape follows scripts/gemma-api-probe.mjs.
-import type { AIResult, AppraiseContext, InterpretContext, Message, Provider, ProviderContext } from '../game/types';
+import type { AIResult, AppraiseContext, CompleteRequest, InterpretContext, Message, Provider, ProviderContext } from '../game/types';
 import { parseProposal } from './ai';
 import { QuotaExhausted, type DailyBudget } from './quota';
 
@@ -30,16 +30,20 @@ const FAIL = 'AIの応答を確定できませんでした。状態は変更し�
 
 export class WorkersAIProvider implements Provider {
   readonly mode = 'workers-ai';
+  /** Optional faster model for short planning calls (e.g. the TRPG dice plan). Story writing keeps `model`. */
+  planModel?: string;
   constructor(private account: string, private token: string, private model: string, readonly budget: DailyBudget, private fetcher: Fetcher = fetch, private retryDelays: number[] = [2000, 5000]) {}
 
-  private async send(system: string, user: string, maxTokens: number) {
-    const response = await this.fetcher(`https://api.cloudflare.com/client/v4/accounts/${this.account}/ai/run/${this.model}`, {
+  private async send(system: string, user: string, maxTokens: number, model: string) {
+    // Model quirks: Qwen3 turns thinking off with "/no_think"; Gemma 4 with chat_template_kwargs.
+    const qwen = /qwen3/i.test(model);
+    const response = await this.fetcher(`https://api.cloudflare.com/client/v4/accounts/${this.account}/ai/run/${model}`, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000),
       headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+        messages: [{ role: 'system', content: system }, { role: 'user', content: qwen ? `${user} /no_think` : user }],
         stream: false, max_completion_tokens: maxTokens,
-        chat_template_kwargs: { enable_thinking: false },
+        ...(qwen ? {} : { chat_template_kwargs: { enable_thinking: false } }),
         response_format: { type: 'json_object' },
       }),
     });
@@ -49,30 +53,38 @@ export class WorkersAIProvider implements Provider {
     return { response, body, codes, retryAfter: Number(response.headers.get('retry-after')) || 0 };
   }
 
-  private async run(system: string, user: string, maxTokens: number): Promise<AIResult & { proposal: unknown }> {
+  private async run(system: string, user: string, maxTokens: number, model = this.model): Promise<AIResult & { proposal: unknown }> {
     if (this.budget.remaining() <= 0) throw new QuotaExhausted(this.budget.resetAt());
-    let sent = await this.send(system, user, maxTokens);
+    // A request that hangs past the timeout is retried once before giving up (state is never changed meanwhile).
+    const sendOnce = () => this.send(system, user, maxTokens, model);
+    let sent = await sendOnce().catch(async (e: unknown) => {
+      if (e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')) return sendOnce();
+      throw e;
+    });
     // 429 without 4006 is a short-term rate limit, not the daily allowance: wait and retry a little.
     for (let attempt = 0; sent.response.status === 429 && !sent.codes.includes(4006) && attempt < this.retryDelays.length; attempt++) {
       await new Promise(r => setTimeout(r, Math.min(10000, sent.retryAfter * 1000 || this.retryDelays[attempt])));
-      sent = await this.send(system, user, maxTokens);
+      sent = await this.send(system, user, maxTokens, model);
     }
     const { response, body, codes } = sent;
     // 4006: "you have used up your daily free allocation".
     if (codes.includes(4006)) { this.budget.exhaust(); throw new QuotaExhausted(this.budget.resetAt()); }
     if (response.status === 429) throw Error('AIが混み合っています。状態は変更していません。少し待って再試行してください。');
     if (!response.ok) throw Error(FAIL);
-    const result = (body.result ?? body) as { choices?: { finish_reason?: string; message?: { content?: unknown } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; neurons?: number } };
+    const result = (body.result ?? body) as { choices?: { finish_reason?: string; message?: { content?: unknown; reasoning_content?: unknown } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; neurons?: number } };
     const u = result.usage;
     const usage = typeof u?.prompt_tokens === 'number' && typeof u?.completion_tokens === 'number' ? { input: u.prompt_tokens, output: u.completion_tokens } : undefined;
     // Prefer the neurons Cloudflare reports; fall back to the published rates.
     if (typeof u?.neurons === 'number') this.budget.record(u.neurons);
     else if (usage) this.budget.record(neuronsOf(usage));
     const choice = result.choices?.[0];
-    if (choice?.finish_reason !== 'stop' || typeof choice.message?.content !== 'string') throw Error(FAIL);
+    // Some models (Qwen3) may put the answer in reasoning_content.
+    const content = typeof choice?.message?.content === 'string' && choice.message.content.trim() ? choice.message.content
+      : typeof choice?.message?.reasoning_content === 'string' ? choice.message.reasoning_content : undefined;
+    if (choice?.finish_reason !== 'stop' || typeof content !== 'string') throw Error(FAIL);
     let proposal: unknown;
-    try { proposal = extractJson(choice.message.content); } catch { throw Error('AIの応答形式が不正でした。状態は変更していません。再試行してください。'); }
-    return { proposal, model: this.model, ...(usage ? { usage } : {}) };
+    try { proposal = extractJson(content); } catch { throw Error('AIの応答形式が不正でした。状態は変更していません。再試行してください。'); }
+    return { proposal, model, ...(usage ? { usage } : {}) };
   }
 
   async propose(ctx: ProviderContext): Promise<AIResult> {
@@ -99,6 +111,11 @@ export class WorkersAIProvider implements Provider {
     ].join('\n');
     const user = `ゲーム:${ctx.content.title}\n基準:${JSON.stringify(ctx.need.marks)}\n対象:${JSON.stringify(ctx.need.subjects.map(s => ({ id: s.id, kind: s.kind, name: s.name, description: s.description })))}`;
     return this.run(system, user, 120 + 60 * ctx.need.marks.length * ctx.need.subjects.length);
+  }
+
+  /** Free-form JSON request (TRPG game master). */
+  async complete(req: CompleteRequest): Promise<AIResult> {
+    return this.run(req.system, req.user, req.maxTokens, req.purpose === 'plan' && this.planModel ? this.planModel : this.model);
   }
 
   async interpret(ctx: InterpretContext): Promise<AIResult> {

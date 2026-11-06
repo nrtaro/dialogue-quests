@@ -15,7 +15,7 @@ const turn = (store: SessionStore, id: string, revision: number, message: string
 describe('試作コンテンツの表示制御', () => {
   it('ENABLE_PROTOTYPES=1 のときだけ掃除ロボを一覧に出す', () => {
     expect(listContents({}).map(c => c.info.id)).toEqual(['hero-whisper']);
-    expect(listContents({ ENABLE_PROTOTYPES: '1' }).map(c => c.info.id)).toEqual(['hero-whisper', 'cleaning-robot']);
+    expect(listContents({ ENABLE_PROTOTYPES: '1' }).map(c => c.info.id)).toEqual(['hero-whisper', 'hero-trpg', 'cleaning-robot']);
   });
 });
 
